@@ -25,7 +25,7 @@ THREAD_LOCAL comm_size_t Network::buffer_size_ = 0;
 THREAD_LOCAL std::vector<char> Network::buffer_;
 THREAD_LOCAL ReduceScatterFunction Network::reduce_scatter_ext_fun_ = nullptr;
 THREAD_LOCAL AllgatherFunction Network::allgather_ext_fun_ = nullptr;
-
+THREAD_LOCAL bool CommParadigmSignaled = false;
 
 void Network::Init(Config config) {
   if (config.num_machines > 1) {
@@ -66,8 +66,28 @@ void Network::Dispose() {
 }
 
 void Network::Allreduce(char* input, comm_size_t input_size, int type_size, char* output, const ReduceFunction& reducer) {
-  if (num_machines_ <= 1) {
-    Log::Fatal("Please initilize the network interface first");
+  const comm_size_t kRingThreshold = 10 * 1024 * 1024;  // 10MB
+  const int kRingNodeThreshold = 64;
+  if(CommParadigmSignaled == false)
+  {
+      CommParadigmSignaled = true;
+      if (count < num_machines_ || input_size < 4096) 
+      {
+          printf("[%d] allreduce using allgather\n", rank_);
+      }
+      comm_size_t all_size = num_machines_ * input_size;
+      if (all_size > kRingThreshold && num_machines_ < kRingNodeThreshold) 
+      {
+          printf("[%d] allreduce using ring\n", rank_);
+      } 
+      else if (recursive_halving_map_.is_power_of_2) 
+      {
+          printf("[%d] allreduce using HD\n", rank_);        
+      } 
+      else
+      {
+          printf("[%d] allreduce using bruck\n", rank_);                
+      }
   }
   comm_size_t count = input_size / type_size;
   // if small package or small count , do it by all gather.(reduce the communication times.)
