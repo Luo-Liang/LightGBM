@@ -6,6 +6,8 @@ for example in examples:
     #print(example)
     target = '%s/lightgbm' % example
     print("linking ./lightgbm -> %s" % target)
-    os.remove(target)
+    if os.path.isfile(target):
+        os.remove(target)
+        pass
     os.symlink(src,target)
     pass
