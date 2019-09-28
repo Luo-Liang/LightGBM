@@ -80,10 +80,6 @@ void Network::Allreduce(char *input, comm_size_t input_size, int type_size, char
   if (CommParadigmSignaled == false)
   {
     CommParadigmSignaled = true;
-    if (count < num_machines_ || input_size < 4096)
-    {
-      printf("[%d] allreduce using allgather\n", rank_);
-    }
     comm_size_t all_size = num_machines_ * input_size;
     if (all_size > kRingThreshold && num_machines_ < kRingNodeThreshold)
     {
@@ -101,6 +97,7 @@ void Network::Allreduce(char *input, comm_size_t input_size, int type_size, char
   // if small package or small count , do it by all gather.(reduce the communication times.)
   if (count < num_machines_ || input_size < 4096)
   {
+    printf("[%d][conclusive] allreduce using allgather\n", rank_);
     AllreduceByAllGather(input, input_size, type_size, output, reducer);
     return;
   }
