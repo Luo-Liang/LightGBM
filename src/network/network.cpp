@@ -185,12 +185,12 @@ void Network::Allgather(char *input, const comm_size_t *block_start, const comm_
   if (all_size > kRingThreshold && num_machines_ < kRingNodeThreshold)
   {
     // when num_machines is small and data is large
-    printf("[%d] allgather with ring\n", rank_);
+    printf("[%d] allgather with ring. size = %d\n", rank_, (int)all_size);
     AllgatherRing(input, block_start, block_len, output, all_size);
   }
   else if (recursive_halving_map_.is_power_of_2)
   {
-    printf("[%d] allgather with HD\n", rank_);
+    printf("[%d] allgather with HD. size = %d\n", rank_, (int)all_size);
     AllgatherRecursiveDoubling(input, block_start, block_len, output, all_size);
   }
   else
