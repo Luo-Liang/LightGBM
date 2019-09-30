@@ -305,7 +305,7 @@ void Network::ReduceScatter(char *input, comm_size_t input_size, int type_size,
   }
   else
   {
-    printf("[%d]reduce scatter with ring.\n", rank_, (int)input_size);
+    printf("[%d]reduce scatter with ring size = %d.\n", rank_, (int)input_size);
     ReduceScatterRing(input, input_size, type_size, block_start, block_len, output, output_size, reducer);
   }
 }
