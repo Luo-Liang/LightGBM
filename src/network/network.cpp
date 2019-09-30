@@ -300,10 +300,12 @@ void Network::ReduceScatter(char *input, comm_size_t input_size, int type_size,
   const comm_size_t kRingThreshold = 10 * 1024 * 1024; // 10MB
   if (recursive_halving_map_.is_power_of_2 || input_size < kRingThreshold)
   {
+    printf("[%d]reduce scatter with HD. input_size = %d\n", rank_, (int)input_size);
     ReduceScatterRecursiveHalving(input, input_size, type_size, block_start, block_len, output, output_size, reducer);
   }
   else
   {
+    printf("[%d]reduce scatter with ring.\n", rank_, (int)input_size);
     ReduceScatterRing(input, input_size, type_size, block_start, block_len, output, output_size, reducer);
   }
 }
