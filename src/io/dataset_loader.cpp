@@ -312,6 +312,7 @@ Dataset* DatasetLoader::LoadFromBinFile(const char* data_filename, const char* b
   dataset->num_data_ = *(reinterpret_cast<const data_size_t*>(mem_ptr));
   mem_ptr += sizeof(dataset->num_data_);
   dataset->num_features_ = *(reinterpret_cast<const int*>(mem_ptr));
+  printf("number of features: %d\n", dataset->num_features_);
   mem_ptr += sizeof(dataset->num_features_);
   dataset->num_total_features_ = *(reinterpret_cast<const int*>(mem_ptr));
   mem_ptr += sizeof(dataset->num_total_features_);
