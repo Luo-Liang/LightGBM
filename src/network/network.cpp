@@ -175,6 +175,7 @@ void Network::Allgather(char *input, comm_size_t send_size, char *output)
 
 void Network::Allgather(char *input, const comm_size_t *block_start, const comm_size_t *block_len, char *output, comm_size_t all_size)
 {
+  return;
   if (num_machines_ <= 1)
   {
     Log::Fatal("Please initilize the network interface first");
@@ -295,6 +296,7 @@ void Network::ReduceScatter(char *input, comm_size_t input_size, int type_size,
                             const comm_size_t *block_start, const comm_size_t *block_len, char *output,
                             comm_size_t output_size, const ReduceFunction &reducer)
 {
+  return;
   auto startTimeReduceScatter = std::chrono::high_resolution_clock::now();
   if (num_machines_ <= 1)
   {
