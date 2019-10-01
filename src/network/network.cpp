@@ -28,6 +28,8 @@ THREAD_LOCAL ReduceScatterFunction Network::reduce_scatter_ext_fun_ = nullptr;
 THREAD_LOCAL AllgatherFunction Network::allgather_ext_fun_ = nullptr;
 THREAD_LOCAL bool CommParadigmSignaled = false;
 
+double Network::ExclusiveNetworkTimeSeconds = 0;
+
 void Network::Init(Config config)
 {
   if (config.num_machines > 1)
