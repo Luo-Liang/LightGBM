@@ -86,21 +86,21 @@ void Network::Allreduce(char *input, comm_size_t input_size, int type_size, char
     comm_size_t all_size = num_machines_ * input_size;
     if (all_size > kRingThreshold && num_machines_ < kRingNodeThreshold)
     {
-      printf("[%d] allreduce using ring\n", rank_);
+      //printf("[%d] allreduce using ring\n", rank_);
     }
     else if (recursive_halving_map_.is_power_of_2)
     {
-      printf("[%d] allreduce using HD\n", rank_);
+      //printf("[%d] allreduce using HD\n", rank_);
     }
     else
     {
-      printf("[%d] allreduce using bruck\n", rank_);
+      //printf("[%d] allreduce using bruck\n", rank_);
     }
   }
   // if small package or small count , do it by all gather.(reduce the communication times.)
   if (count < num_machines_ || input_size < 4096)
   {
-    printf("[%d][conclusive] allreduce using allgather\n", rank_);
+    //printf("[%d][conclusive] allreduce using allgather\n", rank_);
     AllreduceByAllGather(input, input_size, type_size, output, reducer);
     return;
   }
@@ -187,22 +187,49 @@ void Network::Allgather(char *input, const comm_size_t *block_start, const comm_
   const comm_size_t kRingThreshold = 10 * 1024 * 1024; // 10MB
   const int kRingNodeThreshold = 64;
   auto startTimeAllgather = std::chrono::high_resolution_clock::now();
-  if (all_size > kRingThreshold && num_machines_ < kRingNodeThreshold)
+
+  auto collective = Config::GetPreferredCollectives();
+  if (collective == PreferredCollectives::AUTO)
   {
-    // when num_machines is small and data is large
-    printf("[%d] allgather with ring. size = %d\n", rank_, (int)all_size);
+    if (all_size > kRingThreshold && num_machines_ < kRingNodeThreshold)
+    {
+      // when num_machines is small and data is large
+      //printf("[%d] allgather with ring. size = %d\n", rank_, (int)all_size);
+      AllgatherRing(input, block_start, block_len, output, all_size);
+    }
+    else if (recursive_halving_map_.is_power_of_2)
+    {
+      //printf("[%d] allgather with HD. size = %d\n", rank_, (int)all_size);
+      AllgatherRecursiveDoubling(input, block_start, block_len, output, all_size);
+    }
+    else
+    {
+      //printf("[%d] allgather with Bruck\n", rank_);
+      AllgatherBruck(input, block_start, block_len, output, all_size);
+    }
+  }
+  else if (collective == PreferredCollectives::RING)
+  {
     AllgatherRing(input, block_start, block_len, output, all_size);
   }
-  else if (recursive_halving_map_.is_power_of_2)
+  else if (collective == PreferredCollectives::HALVING_DOUBLING)
   {
-    printf("[%d] allgather with HD. size = %d\n", rank_, (int)all_size);
-    AllgatherRecursiveDoubling(input, block_start, block_len, output, all_size);
+    if (recursive_halving_map_.is_power_of_2)
+    {
+      //printf("[%d] allgather with HD. size = %d\n", rank_, (int)all_size);
+      AllgatherRecursiveDoubling(input, block_start, block_len, output, all_size);
+    }
+    else
+    {
+      //printf("[%d] allgather with Bruck\n", rank_);
+      AllgatherBruck(input, block_start, block_len, output, all_size);
+    }
   }
   else
   {
-    printf("[%d] allgather with Bruck\n", rank_);
-    AllgatherBruck(input, block_start, block_len, output, all_size);
+    Log::Fatal("Collective is not implemented.");
   }
+
   auto endTimeAllgather = std::chrono::high_resolution_clock::now();
   ExclusiveNetworkTimeSecondsAllGather += std::chrono::duration<double, std::milli>(endTimeAllgather - startTimeAllgather).count() * 1e-3;
 }
@@ -305,20 +332,35 @@ void Network::ReduceScatter(char *input, comm_size_t input_size, int type_size,
   {
     return reduce_scatter_ext_fun_(input, input_size, type_size, block_start, block_len, num_machines_, output, output_size, reducer);
   }
-  const comm_size_t kRingThreshold = 10 * 1024 * 1024; // 10MB
-  if (recursive_halving_map_.is_power_of_2 || input_size < kRingThreshold)
+  auto collective = Config::GetPreferredCollectives();
+  if (collective == PreferredCollectives::AUTO)
   {
-    printf("[%d]reduce scatter with HD. input_size = %d\n", rank_, (int)input_size);
+    const comm_size_t kRingThreshold = 10 * 1024 * 1024; // 10MB
+    if (recursive_halving_map_.is_power_of_2 || input_size < kRingThreshold)
+    {
+      //printf("[%d]reduce scatter with HD. input_size = %d\n", rank_, (int)input_size);
+      ReduceScatterRecursiveHalving(input, input_size, type_size, block_start, block_len, output, output_size, reducer);
+    }
+    else
+    {
+      //printf("[%d]reduce scatter with ring size = %d.\n", rank_, (int)input_size);
+      ReduceScatterRing(input, input_size, type_size, block_start, block_len, output, output_size, reducer);
+    }
+  }
+  else if (collective == PreferredCollectives::RING)
+  {
+    ReduceScatterRing(input, input_size, type_size, block_start, block_len, output, output_size, reducer);
+  }
+  else if (collective == PreferredCollectives::HALVING_DOUBLING)
+  {
     ReduceScatterRecursiveHalving(input, input_size, type_size, block_start, block_len, output, output_size, reducer);
   }
-  else
+  else 
   {
-    printf("[%d]reduce scatter with ring size = %d.\n", rank_, (int)input_size);
-    ReduceScatterRing(input, input_size, type_size, block_start, block_len, output, output_size, reducer);
+    Log::Fatal("unimplemented reduce scatter");
   }
   auto endTimeReduceScatter = std::chrono::high_resolution_clock::now();
   ExclusiveNetworkTimeSecondsScatterGather += std::chrono::duration<double, std::milli>(endTimeReduceScatter - startTimeReduceScatter).count() * 1e-3;
-
 }
 
 void Network::ReduceScatterRecursiveHalving(char *input, comm_size_t input_size, int type_size,

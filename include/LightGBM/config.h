@@ -19,17 +19,59 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <cstdlib>
 
-namespace LightGBM {
+namespace LightGBM
+{
 
 /*! \brief Types of tasks */
-enum TaskType {
-  kTrain, kPredict, kConvertModel, KRefitTree
+enum TaskType
+{
+  kTrain,
+  kPredict,
+  kConvertModel,
+  KRefitTree
 };
 const int kDefaultNumLeaves = 31;
 
-struct Config {
- public:
+enum PreferredCollectives
+{
+  AUTO,
+  RING,
+  HALVING_DOUBLING,
+  PLINK
+};
+
+struct Config
+{
+public:
+  inline static PreferredCollectives GetPreferredCollectives()
+  {
+    auto cptr = std::getenv("LIGHTGBM_PREFERRED_COLLECTIVES");
+    auto str = std::string(cptr);
+    Log::Info("Preferred Collectives: %s", cptr);
+    if(str == "AUTO" || str == "")
+    {
+      return PreferredCollectives::AUTO;
+    }
+    else if(str == "RING")
+    {
+      return PreferredCollectives::RING;
+    }
+    else if(str == "HALVING_DOUBLING")
+    {
+      return PreferredCollectives::HALVING_DOUBLING;
+    }
+    else if(str == "PLINK")
+    {
+      return PreferredCollectives::PLINK;
+    }
+    else
+    {
+      Log::Fatal("Unknown collectives %s", cptr);
+    }
+    
+  }
   std::string ToString() const;
   /*!
   * \brief Get string value by specific name of key
@@ -39,8 +81,8 @@ struct Config {
   * \return True if key exists
   */
   inline static bool GetString(
-    const std::unordered_map<std::string, std::string>& params,
-    const std::string& name, std::string* out);
+      const std::unordered_map<std::string, std::string> &params,
+      const std::string &name, std::string *out);
 
   /*!
   * \brief Get int value by specific name of key
@@ -50,8 +92,8 @@ struct Config {
   * \return True if key exists
   */
   inline static bool GetInt(
-    const std::unordered_map<std::string, std::string>& params,
-    const std::string& name, int* out);
+      const std::unordered_map<std::string, std::string> &params,
+      const std::string &name, int *out);
 
   /*!
   * \brief Get double value by specific name of key
@@ -61,8 +103,8 @@ struct Config {
   * \return True if key exists
   */
   inline static bool GetDouble(
-    const std::unordered_map<std::string, std::string>& params,
-    const std::string& name, double* out);
+      const std::unordered_map<std::string, std::string> &params,
+      const std::string &name, double *out);
 
   /*!
   * \brief Get bool value by specific name of key
@@ -72,15 +114,15 @@ struct Config {
   * \return True if key exists
   */
   inline static bool GetBool(
-    const std::unordered_map<std::string, std::string>& params,
-    const std::string& name, bool* out);
+      const std::unordered_map<std::string, std::string> &params,
+      const std::string &name, bool *out);
 
-  static void KV2Map(std::unordered_map<std::string, std::string>* params, const char* kv);
-  static std::unordered_map<std::string, std::string> Str2Map(const char* parameters);
+  static void KV2Map(std::unordered_map<std::string, std::string> *params, const char *kv);
+  static std::unordered_map<std::string, std::string> Str2Map(const char *parameters);
 
-  #pragma region Parameters
+#pragma region Parameters
 
-  #pragma region Core Parameters
+#pragma region Core Parameters
 
   // [doc-only]
   // alias = config_file
@@ -207,9 +249,9 @@ struct Config {
   // desc = this seed has lower priority in comparison with other seeds, which means that it will be overridden, if you set other seeds explicitly
   int seed = 0;
 
-  #pragma endregion
+#pragma endregion
 
-  #pragma region Learning Control Parameters
+#pragma region Learning Control Parameters
 
   // desc = limit the max depth for tree model. This is used to deal with over-fitting when ``#data`` is small. Tree still grows leaf-wise
   // desc = ``<= 0`` means no limit
@@ -437,9 +479,9 @@ struct Config {
   // desc = applied once per forest
   std::vector<double> cegb_penalty_feature_coupled;
 
-  #pragma endregion
+#pragma endregion
 
-  #pragma region IO Parameters
+#pragma region IO Parameters
 
   // alias = verbose
   // desc = controls the level of LightGBM's verbosity
@@ -663,9 +705,9 @@ struct Config {
   // desc = **Note**: can be used only in CLI version
   std::string convert_model = "gbdt_prediction.cpp";
 
-  #pragma endregion
+#pragma endregion
 
-  #pragma region Objective Parameters
+#pragma region Objective Parameters
 
   // check = >0
   // alias = num_classes
@@ -740,9 +782,9 @@ struct Config {
   // desc = separate by ``,``
   std::vector<double> label_gain;
 
-  #pragma endregion
+#pragma endregion
 
-  #pragma region Metric Parameters
+#pragma region Metric Parameters
 
   // [doc-only]
   // alias = metrics, metric_types
@@ -800,9 +842,9 @@ struct Config {
   // desc = when ``multi_error_top_k=1`` this is equivalent to the usual multi-error metric
   int multi_error_top_k = 1;
 
-  #pragma endregion
+#pragma endregion
 
-  #pragma region Network Parameters
+#pragma region Network Parameters
 
   // check = >0
   // alias = num_machine
@@ -829,9 +871,9 @@ struct Config {
   // desc = list of machines in the following format: ``ip1:port1,ip2:port2``
   std::string machines = "";
 
-  #pragma endregion
+#pragma endregion
 
-  #pragma region GPU Parameters
+#pragma region GPU Parameters
 
   // desc = OpenCL platform ID. Usually each GPU vendor exposes one OpenCL platform
   // desc = ``-1`` means the system-wide default platform
@@ -846,26 +888,28 @@ struct Config {
   // desc = set this to ``true`` to use double precision math on GPU (by default single precision is used)
   bool gpu_use_dp = false;
 
-  #pragma endregion
+#pragma endregion
 
-  #pragma endregion
+#pragma endregion
 
   bool is_parallel = false;
   bool is_parallel_find_bin = false;
-  LIGHTGBM_EXPORT void Set(const std::unordered_map<std::string, std::string>& params);
+  LIGHTGBM_EXPORT void Set(const std::unordered_map<std::string, std::string> &params);
   static std::unordered_map<std::string, std::string> alias_table;
   static std::unordered_set<std::string> parameter_set;
 
- private:
+private:
   void CheckParamConflict();
-  void GetMembersFromString(const std::unordered_map<std::string, std::string>& params);
+  void GetMembersFromString(const std::unordered_map<std::string, std::string> &params);
   std::string SaveMembersToString() const;
 };
 
 inline bool Config::GetString(
-  const std::unordered_map<std::string, std::string>& params,
-  const std::string& name, std::string* out) {
-  if (params.count(name) > 0 && !params.at(name).empty()) {
+    const std::unordered_map<std::string, std::string> &params,
+    const std::string &name, std::string *out)
+{
+  if (params.count(name) > 0 && !params.at(name).empty())
+  {
     *out = params.at(name);
     return true;
   }
@@ -873,10 +917,13 @@ inline bool Config::GetString(
 }
 
 inline bool Config::GetInt(
-  const std::unordered_map<std::string, std::string>& params,
-  const std::string& name, int* out) {
-  if (params.count(name) > 0 && !params.at(name).empty()) {
-    if (!Common::AtoiAndCheck(params.at(name).c_str(), out)) {
+    const std::unordered_map<std::string, std::string> &params,
+    const std::string &name, int *out)
+{
+  if (params.count(name) > 0 && !params.at(name).empty())
+  {
+    if (!Common::AtoiAndCheck(params.at(name).c_str(), out))
+    {
       Log::Fatal("Parameter %s should be of type int, got \"%s\"",
                  name.c_str(), params.at(name).c_str());
     }
@@ -886,10 +933,13 @@ inline bool Config::GetInt(
 }
 
 inline bool Config::GetDouble(
-  const std::unordered_map<std::string, std::string>& params,
-  const std::string& name, double* out) {
-  if (params.count(name) > 0 && !params.at(name).empty()) {
-    if (!Common::AtofAndCheck(params.at(name).c_str(), out)) {
+    const std::unordered_map<std::string, std::string> &params,
+    const std::string &name, double *out)
+{
+  if (params.count(name) > 0 && !params.at(name).empty())
+  {
+    if (!Common::AtofAndCheck(params.at(name).c_str(), out))
+    {
       Log::Fatal("Parameter %s should be of type double, got \"%s\"",
                  name.c_str(), params.at(name).c_str());
     }
@@ -899,16 +949,23 @@ inline bool Config::GetDouble(
 }
 
 inline bool Config::GetBool(
-  const std::unordered_map<std::string, std::string>& params,
-  const std::string& name, bool* out) {
-  if (params.count(name) > 0 && !params.at(name).empty()) {
+    const std::unordered_map<std::string, std::string> &params,
+    const std::string &name, bool *out)
+{
+  if (params.count(name) > 0 && !params.at(name).empty())
+  {
     std::string value = params.at(name);
     std::transform(value.begin(), value.end(), value.begin(), Common::tolower);
-    if (value == std::string("false") || value == std::string("-")) {
+    if (value == std::string("false") || value == std::string("-"))
+    {
       *out = false;
-    } else if (value == std::string("true") || value == std::string("+")) {
+    }
+    else if (value == std::string("true") || value == std::string("+"))
+    {
       *out = true;
-    } else {
+    }
+    else
+    {
       Log::Fatal("Parameter %s should be \"true\"/\"+\" or \"false\"/\"-\", got \"%s\"",
                  name.c_str(), params.at(name).c_str());
     }
@@ -917,39 +974,55 @@ inline bool Config::GetBool(
   return false;
 }
 
-struct ParameterAlias {
-  static void KeyAliasTransform(std::unordered_map<std::string, std::string>* params) {
+struct ParameterAlias
+{
+  static void KeyAliasTransform(std::unordered_map<std::string, std::string> *params)
+  {
     std::unordered_map<std::string, std::string> tmp_map;
-    for (const auto& pair : *params) {
+    for (const auto &pair : *params)
+    {
       auto alias = Config::alias_table.find(pair.first);
-      if (alias != Config::alias_table.end()) {  // found alias
+      if (alias != Config::alias_table.end())
+      { // found alias
         auto alias_set = tmp_map.find(alias->second);
-        if (alias_set != tmp_map.end()) {  // alias already set
-                                           // set priority by length & alphabetically to ensure reproducible behavior
+        if (alias_set != tmp_map.end())
+        { // alias already set
+          // set priority by length & alphabetically to ensure reproducible behavior
           if (alias_set->second.size() < pair.first.size() ||
-            (alias_set->second.size() == pair.first.size() && alias_set->second < pair.first)) {
+              (alias_set->second.size() == pair.first.size() && alias_set->second < pair.first))
+          {
             Log::Warning("%s is set with %s=%s, %s=%s will be ignored. Current value: %s=%s",
                          alias->second.c_str(), alias_set->second.c_str(), params->at(alias_set->second).c_str(),
                          pair.first.c_str(), pair.second.c_str(), alias->second.c_str(), params->at(alias_set->second).c_str());
-          } else {
+          }
+          else
+          {
             Log::Warning("%s is set with %s=%s, will be overridden by %s=%s. Current value: %s=%s",
                          alias->second.c_str(), alias_set->second.c_str(), params->at(alias_set->second).c_str(),
                          pair.first.c_str(), pair.second.c_str(), alias->second.c_str(), pair.second.c_str());
             tmp_map[alias->second] = pair.first;
           }
-        } else {  // alias not set
+        }
+        else
+        { // alias not set
           tmp_map.emplace(alias->second, pair.first);
         }
-      } else if (Config::parameter_set.find(pair.first) == Config::parameter_set.end()) {
+      }
+      else if (Config::parameter_set.find(pair.first) == Config::parameter_set.end())
+      {
         Log::Warning("Unknown parameter: %s", pair.first.c_str());
       }
     }
-    for (const auto& pair : tmp_map) {
+    for (const auto &pair : tmp_map)
+    {
       auto alias = params->find(pair.first);
-      if (alias == params->end()) {  // not find
+      if (alias == params->end())
+      { // not find
         params->emplace(pair.first, params->at(pair.second));
         params->erase(pair.second);
-      } else {
+      }
+      else
+      {
         Log::Warning("%s is set=%s, %s=%s will be ignored. Current value: %s=%s",
                      pair.first.c_str(), alias->second.c_str(), pair.second.c_str(), params->at(pair.second).c_str(),
                      pair.first.c_str(), alias->second.c_str());
@@ -958,6 +1031,6 @@ struct ParameterAlias {
   }
 };
 
-}   // namespace LightGBM
+} // namespace LightGBM
 
-#endif   // LightGBM_CONFIG_H_
+#endif // LightGBM_CONFIG_H_
