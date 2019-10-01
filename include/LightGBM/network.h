@@ -88,6 +88,7 @@ class RecursiveHalvingMap {
 /*! \brief A static class that contains some collective communication algorithm */
 class Network {
  public:
+  static double ExclusiveNetworkTimeSeconds;
   /*!
   * \brief Initialize
   * \param config Config of network setting

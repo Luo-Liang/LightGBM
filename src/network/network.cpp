@@ -114,6 +114,7 @@ void Network::Allreduce(char *input, comm_size_t input_size, int type_size, char
     block_start_[i + 1] = block_start_[i] + block_len_[i];
   }
   block_len_[num_machines_ - 1] = input_size - block_start_[num_machines_ - 1];
+  //no time instrumentation for these two because they will call into reducescatter
   // do reduce scatter
   ReduceScatter(input, input_size, type_size, block_start_.data(), block_len_.data(), output, input_size, reducer);
   // do all gather
@@ -182,6 +183,7 @@ void Network::Allgather(char *input, const comm_size_t *block_start, const comm_
   }
   const comm_size_t kRingThreshold = 10 * 1024 * 1024; // 10MB
   const int kRingNodeThreshold = 64;
+  auto startTimeAllgather = std::chrono::high_resolution_clock::now();
   if (all_size > kRingThreshold && num_machines_ < kRingNodeThreshold)
   {
     // when num_machines is small and data is large
@@ -198,6 +200,8 @@ void Network::Allgather(char *input, const comm_size_t *block_start, const comm_
     printf("[%d] allgather with Bruck\n", rank_);
     AllgatherBruck(input, block_start, block_len, output, all_size);
   }
+  auto endTimeAllgather = std::chrono::high_resolution_clock::now();
+  ExclusiveNetworkTimeSeconds += std::chrono::duration<double, std::milli>(endTimeAllgather - startTimeAllgather).count() * 1e-3;
 }
 
 void Network::AllgatherBruck(char *input, const comm_size_t *block_start, const comm_size_t *block_len, char *output, comm_size_t all_size)
@@ -289,6 +293,7 @@ void Network::ReduceScatter(char *input, comm_size_t input_size, int type_size,
                             const comm_size_t *block_start, const comm_size_t *block_len, char *output,
                             comm_size_t output_size, const ReduceFunction &reducer)
 {
+  auto startTimeReduceScatter = std::chrono::high_resolution_clock::now();
   if (num_machines_ <= 1)
   {
     Log::Fatal("Please initilize the network interface first");
@@ -308,6 +313,9 @@ void Network::ReduceScatter(char *input, comm_size_t input_size, int type_size,
     printf("[%d]reduce scatter with ring size = %d.\n", rank_, (int)input_size);
     ReduceScatterRing(input, input_size, type_size, block_start, block_len, output, output_size, reducer);
   }
+  auto endTimeReduceScatter = std::chrono::high_resolution_clock::now();
+  ExclusiveNetworkTimeSeconds += std::chrono::duration<double, std::milli>(endTimeReduceScatter - startTimeReduceScatter).count() * 1e-3;
+
 }
 
 void Network::ReduceScatterRecursiveHalving(char *input, comm_size_t input_size, int type_size,
