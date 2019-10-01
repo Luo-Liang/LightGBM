@@ -28,7 +28,8 @@ THREAD_LOCAL ReduceScatterFunction Network::reduce_scatter_ext_fun_ = nullptr;
 THREAD_LOCAL AllgatherFunction Network::allgather_ext_fun_ = nullptr;
 THREAD_LOCAL bool CommParadigmSignaled = false;
 
-double Network::ExclusiveNetworkTimeSeconds = 0;
+double Network::ExclusiveNetworkTimeSecondsAllGather = 0;
+double Network::ExclusiveNetworkTimeSecondsScatterGather = 0;
 
 void Network::Init(Config config)
 {
@@ -175,7 +176,6 @@ void Network::Allgather(char *input, comm_size_t send_size, char *output)
 
 void Network::Allgather(char *input, const comm_size_t *block_start, const comm_size_t *block_len, char *output, comm_size_t all_size)
 {
-  return;
   if (num_machines_ <= 1)
   {
     Log::Fatal("Please initilize the network interface first");
@@ -204,7 +204,7 @@ void Network::Allgather(char *input, const comm_size_t *block_start, const comm_
     AllgatherBruck(input, block_start, block_len, output, all_size);
   }
   auto endTimeAllgather = std::chrono::high_resolution_clock::now();
-  ExclusiveNetworkTimeSeconds += std::chrono::duration<double, std::milli>(endTimeAllgather - startTimeAllgather).count() * 1e-3;
+  ExclusiveNetworkTimeSecondsAllGather += std::chrono::duration<double, std::milli>(endTimeAllgather - startTimeAllgather).count() * 1e-3;
 }
 
 void Network::AllgatherBruck(char *input, const comm_size_t *block_start, const comm_size_t *block_len, char *output, comm_size_t all_size)
@@ -296,7 +296,6 @@ void Network::ReduceScatter(char *input, comm_size_t input_size, int type_size,
                             const comm_size_t *block_start, const comm_size_t *block_len, char *output,
                             comm_size_t output_size, const ReduceFunction &reducer)
 {
-  return;
   auto startTimeReduceScatter = std::chrono::high_resolution_clock::now();
   if (num_machines_ <= 1)
   {
@@ -318,7 +317,7 @@ void Network::ReduceScatter(char *input, comm_size_t input_size, int type_size,
     ReduceScatterRing(input, input_size, type_size, block_start, block_len, output, output_size, reducer);
   }
   auto endTimeReduceScatter = std::chrono::high_resolution_clock::now();
-  ExclusiveNetworkTimeSeconds += std::chrono::duration<double, std::milli>(endTimeReduceScatter - startTimeReduceScatter).count() * 1e-3;
+  ExclusiveNetworkTimeSecondsScatterGather += std::chrono::duration<double, std::milli>(endTimeReduceScatter - startTimeReduceScatter).count() * 1e-3;
 
 }
 
