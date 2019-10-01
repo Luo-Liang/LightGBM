@@ -1,5 +1,6 @@
 mkdir -p build
 cd build
+make clean
 cmake -DUSE_MPI=1 -DUSE_GPU=1 .. 
 make -j16
 cd ..
