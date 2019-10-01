@@ -49,7 +49,7 @@ public:
   {
     auto cptr = std::getenv("LIGHTGBM_PREFERRED_COLLECTIVES");
     auto str = std::string(cptr);
-    Log::Info("Preferred Collectives: %s", cptr);
+    //Log::Info("Preferred Collectives: %s", cptr);
     if(str == "AUTO" || str == "")
     {
       return PreferredCollectives::AUTO;
