@@ -89,6 +89,7 @@ enum NetworkTimeType
 {
   SEND,
   RECV,
+  SENDRECV,
   EXCLUSIVESENDRECV
 };
 /*! \brief A static class that contains some collective communication algorithm */

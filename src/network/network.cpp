@@ -28,9 +28,6 @@ THREAD_LOCAL ReduceScatterFunction Network::reduce_scatter_ext_fun_ = nullptr;
 THREAD_LOCAL AllgatherFunction Network::allgather_ext_fun_ = nullptr;
 THREAD_LOCAL bool CommParadigmSignaled = false;
 
-
-
-
 size_t Network::GetGlobalNetworkTransferSize()
 {
   return linkers_->InferredTranferredBytes;
@@ -38,24 +35,23 @@ size_t Network::GetGlobalNetworkTransferSize()
 
 double Network::GetNetworkTime(NetworkTimeType type)
 {
-  if(type == NetworkTimeType::EXCLUSIVESENDRECV)
+  if (type == NetworkTimeType::EXCLUSIVESENDRECV)
   {
     return linkers_->NetworkSendTime + linkers_->NetworkRecvTime - linkers_->NetworkSendRecvTime;
   }
-  else if(type == NetworkTimeType::SEND)
+  else if (type == NetworkTimeType::SEND)
   {
     return linkers_->NetworkSendTime;
   }
-  else if(type == NetworkTimeType::RECV)
+  else if (type == NetworkTimeType::RECV)
   {
     return linkers_->NetworkRecvTime;
   }
   else
   {
-    return 0;
+    return linkers_->NetworkSendRecvTime;
   }
 }
-
 
 void Network::Init(Config config)
 {
@@ -254,7 +250,6 @@ void Network::Allgather(char *input, const comm_size_t *block_start, const comm_
   {
     Log::Fatal("Collective is not implemented.");
   }
-
 }
 
 void Network::AllgatherBruck(char *input, const comm_size_t *block_start, const comm_size_t *block_len, char *output, comm_size_t all_size)
