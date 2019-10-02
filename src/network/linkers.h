@@ -57,7 +57,7 @@ public:
   double s() const
   {
     auto now = std::chrono::high_resolution_clock::now();
-    return 1.0 * std::chrono::nanoseconds(now - start_).count() * 1e-9;
+    return 1.0 * std::chrono::nanoseconds(now - start_).count() / 1000 / 1000 / 1000;
   }
 };
 
@@ -179,7 +179,6 @@ public:
   void PrintLinkers();
 
 #endif // USE_SOCKET
-
 
 private:
   /*! \brief Rank of local machine */
