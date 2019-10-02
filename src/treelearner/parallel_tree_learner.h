@@ -194,6 +194,7 @@ inline void SyncUpGlobalBestSplit(char* input_buffer_, char* output_buffer_, Spl
   larger_best_split->CopyTo(input_buffer_ + size);
   Network::Allreduce(input_buffer_, size * 2, size, output_buffer_,
                      [] (const char* src, char* dst, int size, comm_size_t len) {
+                       int numSlowMemcpy = 0;
     comm_size_t used_size = 0;
     LightSplitInfo p1, p2;
     while (used_size < len) {
@@ -205,7 +206,9 @@ inline void SyncUpGlobalBestSplit(char* input_buffer_, char* output_buffer_, Spl
       src += size;
       dst += size;
       used_size += size;
+      numSlowMemcpy++;
     }
+    printf("[%d] num slow = {1}\n", Network::rank(), numSlowMemcpy);
   });
   // copy back
   smaller_best_split->CopyFrom(output_buffer_);
