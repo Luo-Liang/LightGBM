@@ -85,13 +85,18 @@ class RecursiveHalvingMap {
   */
   static RecursiveHalvingMap Construct(int rank, int num_machines);
 };
-
+enum NetworkTimeType
+{
+  SEND,
+  RECV,
+  EXCLUSIVESENDRECV
+};
 /*! \brief A static class that contains some collective communication algorithm */
 class Network {
  public:
-  static THREAD_LOCAL double ExclusiveNetworkTimeSecondsAllGather;
-  static THREAD_LOCAL double ExclusiveNetworkTimeSecondsScatterGather;
   static size_t GetGlobalNetworkTransferSize();
+
+  static double GetNetworkTime(NetworkTimeType type);
   /*!
   * \brief Initialize
   * \param config Config of network setting

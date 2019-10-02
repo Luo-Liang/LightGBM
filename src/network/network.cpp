@@ -28,13 +28,34 @@ THREAD_LOCAL ReduceScatterFunction Network::reduce_scatter_ext_fun_ = nullptr;
 THREAD_LOCAL AllgatherFunction Network::allgather_ext_fun_ = nullptr;
 THREAD_LOCAL bool CommParadigmSignaled = false;
 
-THREAD_LOCAL double Network::ExclusiveNetworkTimeSecondsAllGather = 0;
-THREAD_LOCAL double Network::ExclusiveNetworkTimeSecondsScatterGather = 0;
+
+
 
 size_t Network::GetGlobalNetworkTransferSize()
 {
-  return linkers_->GetInferredBytesTransferred();
+  return linkers_->InferredTranferredBytes;
 }
+
+double Network::GetNetworkTime(NetworkTimeType type)
+{
+  if(type == NetworkTimeType::EXCLUSIVESENDRECV)
+  {
+    return linkers_->NetworkSendTime + linkers_->NetworkRecvTime - linkers_->NetworkSendRecvTime;
+  }
+  else if(type == NetworkTimeType::SEND)
+  {
+    return linkers_->NetworkSendTime;
+  }
+  else if(type == NetworkTimeType::RECV)
+  {
+    return linkers_->NetworkRecvTime;
+  }
+  else
+  {
+    return 0;
+  }
+}
+
 
 void Network::Init(Config config)
 {
@@ -191,7 +212,6 @@ void Network::Allgather(char *input, const comm_size_t *block_start, const comm_
   }
   const comm_size_t kRingThreshold = 10 * 1024 * 1024; // 10MB
   const int kRingNodeThreshold = 64;
-  auto startTimeAllgather = std::chrono::high_resolution_clock::now();
 
   auto collective = Config::GetPreferredCollectives(CollectiveType::ALLGATHER);
   if (collective == PreferredCollectives::AUTO)
@@ -235,8 +255,6 @@ void Network::Allgather(char *input, const comm_size_t *block_start, const comm_
     Log::Fatal("Collective is not implemented.");
   }
 
-  auto endTimeAllgather = std::chrono::high_resolution_clock::now();
-  ExclusiveNetworkTimeSecondsAllGather += std::chrono::duration<double, std::milli>(endTimeAllgather - startTimeAllgather).count() * 1e-3;
 }
 
 void Network::AllgatherBruck(char *input, const comm_size_t *block_start, const comm_size_t *block_len, char *output, comm_size_t all_size)
@@ -328,7 +346,6 @@ void Network::ReduceScatter(char *input, comm_size_t input_size, int type_size,
                             const comm_size_t *block_start, const comm_size_t *block_len, char *output,
                             comm_size_t output_size, const ReduceFunction &reducer)
 {
-  auto startTimeReduceScatter = std::chrono::high_resolution_clock::now();
   if (num_machines_ <= 1)
   {
     Log::Fatal("Please initilize the network interface first");
@@ -364,8 +381,6 @@ void Network::ReduceScatter(char *input, comm_size_t input_size, int type_size,
   {
     Log::Fatal("unimplemented reduce scatter");
   }
-  auto endTimeReduceScatter = std::chrono::high_resolution_clock::now();
-  ExclusiveNetworkTimeSecondsScatterGather += std::chrono::duration<double, std::milli>(endTimeReduceScatter - startTimeReduceScatter).count() * 1e-3;
 }
 
 void Network::ReduceScatterRecursiveHalving(char *input, comm_size_t input_size, int type_size,
