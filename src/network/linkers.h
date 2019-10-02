@@ -39,6 +39,10 @@ class Linkers {
   Linkers() {
     is_init_ = false;
   }
+  inline size_t GetInferredBytesTransferred()
+  {
+    return InferredTranferredBytes;
+  }
   /*!
   * \brief Constructor
   * \param config Config of network settings
@@ -54,9 +58,9 @@ class Linkers {
   * \param data Pointer of receive data
   * \prama len Recv size, will block until recive len size of data
   */
-  inline void Recv(int rank, char* data, int len) const;
+  inline void Recv(int rank, char* data, int len);
 
-  inline void Recv(int rank, char* data, int64_t len) const;
+  inline void Recv(int rank, char* data, int64_t len);
 
   /*!
   * \brief Send data, blocking
@@ -64,9 +68,9 @@ class Linkers {
   * \param data Pointer of send data
   * \prama len Send size
   */
-  inline void Send(int rank, char* data, int len) const;
+  inline void Send(int rank, char* data, int len);
 
-  inline void Send(int rank, char* data, int64_t len) const;
+  inline void Send(int rank, char* data, int64_t len);
   /*!
   * \brief Send and Recv at same time, blocking
   * \param send_rank
@@ -150,6 +154,7 @@ class Linkers {
   RecursiveHalvingMap recursive_halving_map_;
 
   std::chrono::duration<double, std::milli> network_time_;
+  std::size_t InferredTranferredBytes;
 
   bool is_init_;
 
@@ -186,7 +191,7 @@ inline const RecursiveHalvingMap& Linkers::recursive_halving_map() {
   return recursive_halving_map_;
 }
 
-inline void Linkers::Recv(int rank, char* data, int64_t len) const {
+inline void Linkers::Recv(int rank, char* data, int64_t len) {
   int64_t used = 0;
   do {
     int cur_size = static_cast<int>(std::min<int64_t>(len - used, INT32_MAX));
@@ -195,7 +200,7 @@ inline void Linkers::Recv(int rank, char* data, int64_t len) const {
   } while (used < len);
 }
 
-inline void Linkers::Send(int rank, char* data, int64_t len) const {
+inline void Linkers::Send(int rank, char* data, int64_t len){
   int64_t used = 0;
   do {
     int cur_size = static_cast<int>(std::min<int64_t>(len - used, INT32_MAX));
@@ -221,16 +226,17 @@ inline void Linkers::SendRecv(int send_rank, char* send_data, int64_t send_len,
 
 #ifdef USE_SOCKET
 
-inline void Linkers::Recv(int rank, char* data, int len) const {
+inline void Linkers::Recv(int rank, char* data, int len) {
   int recv_cnt = 0;
   while (recv_cnt < len) {
     recv_cnt += linkers_[rank]->Recv(data + recv_cnt,
       // len - recv_cnt
       std::min(len - recv_cnt, SocketConfig::kMaxReceiveSize));
   }
+  InferredTranferredBytes += len;
 }
 
-inline void Linkers::Send(int rank, char* data, int len) const {
+inline void Linkers::Send(int rank, char* data, int len) {
   if (len <= 0) {
     return;
   }
@@ -238,6 +244,7 @@ inline void Linkers::Send(int rank, char* data, int len) const {
   while (send_cnt < len) {
     send_cnt += linkers_[rank]->Send(data + send_cnt, len - send_cnt);
   }
+  InferredTranferredBytes += len;
 }
 
 inline void Linkers::SendRecv(int send_rank, char* send_data, int send_len,
@@ -266,7 +273,7 @@ inline void Linkers::SendRecv(int send_rank, char* send_data, int send_len,
 
 #ifdef USE_MPI
 
-inline void Linkers::Recv(int rank, char* data, int len) const {
+inline void Linkers::Recv(int rank, char* data, int len) {
   MPI_Status status;
   int read_cnt = 0;
   while (read_cnt < len) {
@@ -275,9 +282,10 @@ inline void Linkers::Recv(int rank, char* data, int len) const {
     MPI_SAFE_CALL(MPI_Get_count(&status, MPI_BYTE, &cur_cnt));
     read_cnt += cur_cnt;
   }
+  InferredTranferredBytes += len;
 }
 
-inline void Linkers::Send(int rank, char* data, int len) const {
+inline void Linkers::Send(int rank, char* data, int len) {
   if (len <= 0) {
     return;
   }
@@ -285,6 +293,7 @@ inline void Linkers::Send(int rank, char* data, int len) const {
   MPI_Request send_request;
   MPI_SAFE_CALL(MPI_Isend(data, len, MPI_BYTE, rank, 0, MPI_COMM_WORLD, &send_request));
   MPI_SAFE_CALL(MPI_Wait(&send_request, &status));
+  InferredTranferredBytes += len;
 }
 
 inline void Linkers::SendRecv(int send_rank, char* send_data, int send_len,

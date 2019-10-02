@@ -9,6 +9,7 @@
 #include <LightGBM/meta.h>
 #include <LightGBM/utils/log.h>
 
+
 #include <functional>
 #include <memory>
 #include <vector>
@@ -88,8 +89,9 @@ class RecursiveHalvingMap {
 /*! \brief A static class that contains some collective communication algorithm */
 class Network {
  public:
-  static double ExclusiveNetworkTimeSecondsAllGather;
-  static double ExclusiveNetworkTimeSecondsScatterGather;
+  static THREAD_LOCAL double ExclusiveNetworkTimeSecondsAllGather;
+  static THREAD_LOCAL double ExclusiveNetworkTimeSecondsScatterGather;
+  static size_t GetGlobalNetworkTransferSize();
   /*!
   * \brief Initialize
   * \param config Config of network setting

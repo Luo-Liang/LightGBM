@@ -287,7 +287,8 @@ void GBDT::Train(int snapshot_freq, const std::string& model_output_path) {
     // output used time per iteration
     auto speed = std::chrono::duration<double,std::milli>(end_time - start_time).count() * 1e-3;
     auto totalComm = Network::ExclusiveNetworkTimeSecondsAllGather + Network::ExclusiveNetworkTimeSecondsScatterGather;
-    Log::Info("[%d] %f seconds elapsed, finished iteration %d. exclusive network time = %f seconds (%f%%). Allgather = %f seconds, and ScatterGather = %f seconds. ", Network::rank(), speed, iter + 1, totalComm, 100.0 * totalComm / speed, Network::ExclusiveNetworkTimeSecondsAllGather, Network::ExclusiveNetworkTimeSecondsScatterGather);
+    auto bytesOnWire = Network::GetGlobalNetworkTransferSize();
+    Log::Info("[%d] %f seconds elapsed, finished iteration %d. exclusive network time = %f seconds (%f%%) Bytes on Wire:%fMB. Allgather = %f seconds, and ScatterGather = %f seconds. ", Network::rank(), speed, iter + 1, totalComm, 100.0 * totalComm / speed, bytesOnWire, Network::ExclusiveNetworkTimeSecondsAllGather, Network::ExclusiveNetworkTimeSecondsScatterGather);
     if (snapshot_freq > 0
         && (iter + 1) % snapshot_freq == 0) {
       std::string snapshot_out = model_output_path + ".snapshot_iter_" + std::to_string(iter + 1);

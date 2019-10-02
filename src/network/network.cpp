@@ -28,8 +28,13 @@ THREAD_LOCAL ReduceScatterFunction Network::reduce_scatter_ext_fun_ = nullptr;
 THREAD_LOCAL AllgatherFunction Network::allgather_ext_fun_ = nullptr;
 THREAD_LOCAL bool CommParadigmSignaled = false;
 
-double Network::ExclusiveNetworkTimeSecondsAllGather = 0;
-double Network::ExclusiveNetworkTimeSecondsScatterGather = 0;
+THREAD_LOCAL double Network::ExclusiveNetworkTimeSecondsAllGather = 0;
+THREAD_LOCAL double Network::ExclusiveNetworkTimeSecondsScatterGather = 0;
+
+size_t Network::GetGlobalNetworkTransferSize()
+{
+  return linkers_->GetInferredBytesTransferred();
+}
 
 void Network::Init(Config config)
 {
@@ -355,7 +360,7 @@ void Network::ReduceScatter(char *input, comm_size_t input_size, int type_size,
   {
     ReduceScatterRecursiveHalving(input, input_size, type_size, block_start, block_len, output, output_size, reducer);
   }
-  else 
+  else
   {
     Log::Fatal("unimplemented reduce scatter");
   }
