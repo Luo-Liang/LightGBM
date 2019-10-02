@@ -37,7 +37,14 @@ double Network::GetNetworkTime(NetworkTimeType type)
 {
   if (type == NetworkTimeType::EXCLUSIVESENDRECV)
   {
-    return linkers_->NetworkSendTime + linkers_->NetworkRecvTime - linkers_->NetworkSendRecvTime;
+    if (linkers_->NetworkSendTime * linkers_->NetworkRecvTime == 0)
+    {
+      return linkers_->NetworkSendRecvTime;
+    }
+    else
+    {
+      return linkers_->NetworkSendTime + linkers_->NetworkRecvTime - linkers_->NetworkSendRecvTime;
+    }
   }
   else if (type == NetworkTimeType::SEND)
   {
