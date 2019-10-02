@@ -136,10 +136,10 @@ public:
   */
   inline const RecursiveHalvingMap &recursive_halving_map();
   //perf tracker can be exposed no problem.
-  std::size_t InferredTranferredBytes;
-  double NetworkSendTime;
-  double NetworkRecvTime;
-  double NetworkSendRecvTime;
+  std::size_t InferredTranferredBytes = 0;
+  double NetworkSendTime = 0;
+  double NetworkRecvTime = 0;
+  double NetworkSendRecvTime = 0;
 #ifdef USE_SOCKET
   /*!
   * \brief Bind local listen to port
