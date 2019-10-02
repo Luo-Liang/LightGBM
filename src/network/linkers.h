@@ -312,6 +312,7 @@ inline void Linkers::SendRecv(int send_rank, char* send_data, int send_len,
   }
   // wait for send complete
   MPI_SAFE_CALL(MPI_Wait(&send_request, &status));
+  InferredTranferredBytes += send_len + recv_len;
 }
 
 #endif  // USE_MPI
