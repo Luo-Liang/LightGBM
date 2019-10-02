@@ -208,7 +208,7 @@ inline void SyncUpGlobalBestSplit(char* input_buffer_, char* output_buffer_, Spl
       used_size += size;
       numSlowMemcpy++;
     }
-    printf("[%d] num slow = {1}\n", Network::rank(), numSlowMemcpy);
+    printf("[%d] num slow = %d\n", Network::rank(), numSlowMemcpy);
   });
   // copy back
   smaller_best_split->CopyFrom(output_buffer_);
