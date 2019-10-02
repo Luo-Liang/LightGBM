@@ -8,6 +8,8 @@
 #include <LightGBM/config.h>
 #include <LightGBM/meta.h>
 #include <LightGBM/utils/log.h>
+#include <boost/asio/ip/host_name.hpp>
+
 
 
 #include <functional>
@@ -98,6 +100,11 @@ class Network {
   static size_t GetGlobalNetworkTransferSize();
 
   static double GetNetworkTime(NetworkTimeType type);
+  static std::string GetHostName()
+  {
+    auto host_name = boost::asio::ip::host_name();
+    return host_name;
+  }
   /*!
   * \brief Initialize
   * \param config Config of network setting
