@@ -37,10 +37,10 @@ const int kDefaultNumLeaves = 31;
 
 enum PreferredCollectives
 {
-  AUTO,
-  RING,
-  HALVING_DOUBLING,
-  PLINK
+  AUTO = 0,
+  RING = 1,
+  HALVING_DOUBLING = 2,
+  PLINK = 3
 };
 
 enum CollectiveType
@@ -70,7 +70,7 @@ private:
     {
       Log::Fatal("Unknown collectives type %d", type);
     }
-    
+
     auto str = std::string(cptr);
     //Log::Info("Preferred Collectives: %s", cptr);
     if (str == "AUTO" || str == "")
@@ -106,6 +106,7 @@ public:
       CollectivePreference.resize(2);
       CollectivePreference[CollectiveType::ALLGATHER] = getPreferredColletiveByType(CollectiveType::ALLGATHER);
       CollectivePreference[CollectiveType::REDUCESCATTER] = getPreferredColletiveByType(CollectiveType::REDUCESCATTER);
+      Log::Info("ALLGATHER: %d, REDUCE SCATTER: %d", CollectivePreference[CollectiveType::ALLGATHER], CollectivePreference[CollectiveType::REDUCESCATTER]);
     }
     return CollectivePreference[type];
   }
