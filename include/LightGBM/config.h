@@ -20,6 +20,7 @@
 #include <unordered_set>
 #include <vector>
 #include <cstdlib>
+#include <mutex>
 
 namespace LightGBM
 {
@@ -42,35 +43,71 @@ enum PreferredCollectives
   PLINK
 };
 
+enum CollectiveType
+{
+  ALLGATHER = 0,
+  REDUCESCATTER = 1
+};
+
 struct Config
 {
-public:
-  inline static PreferredCollectives GetPreferredCollectives()
+
+private:
+  static std::mutex initLock;
+  static std::vector<PreferredCollectives> CollectivePreference;
+  static PreferredCollectives getPreferredColletiveByType(CollectiveType type)
   {
-    auto cptr = std::getenv("LIGHTGBM_PREFERRED_COLLECTIVES");
+    auto cptr = std::getenv("LIGHTGBM_PREFERRED_COLLECTIVES_REDUCE_SCATTER");
+    if (type == CollectiveType::ALLGATHER)
+    {
+      cptr = std::getenv("LIGHTGBM_PREFERRED_COLLECTIVES_ALLGATHER");
+    }
+    else if (type == CollectiveType::REDUCESCATTER)
+    {
+      cptr = std::getenv("LIGHTGBM_PREFERRED_COLLECTIVES_REDUCE_SCATTER");
+    }
+    else
+    {
+      Log::Fatal("Unknown collectives type %d", type);
+    }
+    
     auto str = std::string(cptr);
     //Log::Info("Preferred Collectives: %s", cptr);
-    if(str == "AUTO" || str == "")
+    if (str == "AUTO" || str == "")
     {
       return PreferredCollectives::AUTO;
     }
-    else if(str == "RING")
+    else if (str == "RING")
     {
       return PreferredCollectives::RING;
     }
-    else if(str == "HALVING_DOUBLING")
+    else if (str == "HALVING_DOUBLING")
     {
       return PreferredCollectives::HALVING_DOUBLING;
     }
-    else if(str == "PLINK")
+    else if (str == "PLINK")
     {
       return PreferredCollectives::PLINK;
     }
     else
     {
       Log::Fatal("Unknown collectives %s", cptr);
+      //never hits
+      return PreferredCollectives::AUTO;
     }
-    
+  }
+
+public:
+  inline static PreferredCollectives GetPreferredCollectives(CollectiveType type)
+  {
+    std::lock_guard<std::mutex> guard(initLock);
+    if (CollectivePreference.size() == 0)
+    {
+      CollectivePreference.resize(2);
+      CollectivePreference[CollectiveType::ALLGATHER] = getPreferredColletiveByType(CollectiveType::ALLGATHER);
+      CollectivePreference[CollectiveType::REDUCESCATTER] = getPreferredColletiveByType(CollectiveType::REDUCESCATTER);
+    }
+    return CollectivePreference[type];
   }
   std::string ToString() const;
   /*!

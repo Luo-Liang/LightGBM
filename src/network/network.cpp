@@ -86,15 +86,15 @@ void Network::Allreduce(char *input, comm_size_t input_size, int type_size, char
     comm_size_t all_size = num_machines_ * input_size;
     if (all_size > kRingThreshold && num_machines_ < kRingNodeThreshold)
     {
-      //printf("[%d] allreduce using ring\n", rank_);
+      printf("[%d] allreduce using ring\n", rank_);
     }
     else if (recursive_halving_map_.is_power_of_2)
     {
-      //printf("[%d] allreduce using HD\n", rank_);
+      printf("[%d] allreduce using HD\n", rank_);
     }
     else
     {
-      //printf("[%d] allreduce using bruck\n", rank_);
+      printf("[%d] allreduce using bruck\n", rank_);
     }
   }
   // if small package or small count , do it by all gather.(reduce the communication times.)
@@ -188,7 +188,7 @@ void Network::Allgather(char *input, const comm_size_t *block_start, const comm_
   const int kRingNodeThreshold = 64;
   auto startTimeAllgather = std::chrono::high_resolution_clock::now();
 
-  auto collective = Config::GetPreferredCollectives();
+  auto collective = Config::GetPreferredCollectives(CollectiveType::ALLGATHER);
   if (collective == PreferredCollectives::AUTO)
   {
     if (all_size > kRingThreshold && num_machines_ < kRingNodeThreshold)
@@ -332,7 +332,7 @@ void Network::ReduceScatter(char *input, comm_size_t input_size, int type_size,
   {
     return reduce_scatter_ext_fun_(input, input_size, type_size, block_start, block_len, num_machines_, output, output_size, reducer);
   }
-  auto collective = Config::GetPreferredCollectives();
+  auto collective = Config::GetPreferredCollectives(CollectiveType::REDUCESCATTER);
   if (collective == PreferredCollectives::AUTO)
   {
     const comm_size_t kRingThreshold = 10 * 1024 * 1024; // 10MB
