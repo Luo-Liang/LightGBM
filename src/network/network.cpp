@@ -191,8 +191,15 @@ void Network::AllreduceByAllGather(char *input, comm_size_t input_size, int type
   std::memcpy(output, buffer_.data(), input_size);
 }
 
+void PrintTimestampToLog(int rank, std::string prefix)
+{
+  auto ms = duration_cast<microseconds>(system_clock::now().time_since_epoch()).count();
+  Log::Info("[%d:%" PRIu64 "] %s.", rank, ms, prefix.c_str());
+}
+
 void Network::Allgather(char *input, comm_size_t send_size, char *output)
 {
+  PrintTimestampToLog(rank_, " Allgather");
   if (num_machines_ <= 1)
   {
     Log::Fatal("Please initilize the network interface first");
@@ -208,6 +215,7 @@ void Network::Allgather(char *input, comm_size_t send_size, char *output)
   }
   // start all gather
   Allgather(input, block_start_.data(), block_len_.data(), output, send_size * num_machines_);
+  PrintTimestampToLog(rank_, " rehtagllA");
 }
 
 void Network::Allgather(char *input, const comm_size_t *block_start, const comm_size_t *block_len, char *output, comm_size_t all_size)
@@ -355,6 +363,7 @@ void Network::ReduceScatter(char *input, comm_size_t input_size, int type_size,
                             const comm_size_t *block_start, const comm_size_t *block_len, char *output,
                             comm_size_t output_size, const ReduceFunction &reducer)
 {
+  PrintTimestampToLog(rank_, "ReduceScatter");
   if (num_machines_ <= 1)
   {
     Log::Fatal("Please initilize the network interface first");
@@ -390,6 +399,7 @@ void Network::ReduceScatter(char *input, comm_size_t input_size, int type_size,
   {
     Log::Fatal("unimplemented reduce scatter");
   }
+  PrintTimestampToLog(rank_, "rettacSecudeR");
 }
 
 void Network::ReduceScatterRecursiveHalving(char *input, comm_size_t input_size, int type_size,
