@@ -32,36 +32,7 @@
 namespace LightGBM
 {
 
-class Timer
-{
 
-protected:
-  std::chrono::time_point<std::chrono::high_resolution_clock>
-      start_;
-
-public:
-  Timer()
-  {
-    start();
-  }
-
-  void start()
-  {
-    start_ = std::chrono::high_resolution_clock::now();
-  }
-
-  long ns() const
-  {
-    auto now = std::chrono::high_resolution_clock::now();
-    return std::chrono::nanoseconds(now - start_).count();
-  }
-
-  double s() const
-  {
-    auto now = std::chrono::high_resolution_clock::now();
-    return 1.0 * std::chrono::nanoseconds(now - start_).count() / 1000 / 1000 / 1000;
-  }
-};
 
 /*!
 * \brief An network basic communication warpper.
