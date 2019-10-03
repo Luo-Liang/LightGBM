@@ -193,8 +193,8 @@ void Network::AllreduceByAllGather(char *input, comm_size_t input_size, int type
 
 void PrintTimestampToLog(int rank, std::string prefix)
 {
-  auto ms = duration_cast<microseconds>(system_clock::now().time_since_epoch()).count();
-  Log::Info("[%d:%" PRIu64 "] %s.", rank, ms, prefix.c_str());
+  //auto ms = duration_cast<microseconds>(system_clock::now().time_since_epoch()).count();
+  //Log::Info("[%d:%" PRIu64 "] %s.", rank, ms, prefix.c_str());
 }
 
 void Network::Allgather(char *input, comm_size_t send_size, char *output)
