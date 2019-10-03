@@ -18,6 +18,10 @@ namespace LightGBM {
 
 std::mutex Linkers::tidLock;
 std::unordered_set<std::thread::id> Linkers::allTouchingTIDs;
+std::size_t Linkers::InferredTranferredBytes;// = 0;
+double Linkers::NetworkSendTime;// = 0;
+double Linkers::NetworkRecvTime;// = 0;
+double Linkers::NetworkSendRecvTime;//= 0;
 
 BruckMap::BruckMap() {
   k = 0;
