@@ -236,6 +236,7 @@ inline const RecursiveHalvingMap &Linkers::recursive_halving_map()
 
 inline void Linkers::Recv(int rank, char *data, int64_t len)
 {
+  Log::Fatal("inline void Linkers::Recv(int rank, char *data, int64_t len) is disabled");
   int64_t used = 0;
   do
   {
@@ -247,6 +248,7 @@ inline void Linkers::Recv(int rank, char *data, int64_t len)
 
 inline void Linkers::Send(int rank, char *data, int64_t len)
 {
+  Log::Fatal("inline void Linkers::Send(int rank, char *data, int64_t len) is disabled");
   int64_t used = 0;
   do
   {
@@ -259,6 +261,7 @@ inline void Linkers::Send(int rank, char *data, int64_t len)
 inline void Linkers::SendRecv(int send_rank, char *send_data, int64_t send_len,
                               int recv_rank, char *recv_data, int64_t recv_len)
 {
+  Log::Fatal("inline void Linkers::SendRecv(int send_rank, char *send_data, int64_t send_len, int recv_rank, char *recv_data, int64_t recv_len) is disabled");
   std::thread send_worker(
       [this, send_rank, send_data, send_len]() {
         Send(send_rank, send_data, send_len);
