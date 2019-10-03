@@ -41,28 +41,29 @@ size_t Network::GetNetworkThreadCount()
 
 double Network::GetNetworkTime(NetworkTimeType type)
 {
+  const double ratio = 1000 * 1000 * 1000;
   if (type == NetworkTimeType::EXCLUSIVESENDRECV)
   {
     if (linkers_->NetworkSendTime * linkers_->NetworkRecvTime == 0)
     {
-      return linkers_->NetworkSendRecvTime;
+      return linkers_->NetworkSendRecvTime / ratio;
     }
     else
     {
-      return linkers_->NetworkSendTime + linkers_->NetworkRecvTime - linkers_->NetworkSendRecvTime;
+      return (linkers_->NetworkSendTime + linkers_->NetworkRecvTime - linkers_->NetworkSendRecvTime) / ratio;
     }
   }
   else if (type == NetworkTimeType::SEND)
   {
-    return linkers_->NetworkSendTime;
+    return linkers_->NetworkSendTime / ratio;
   }
   else if (type == NetworkTimeType::RECV)
   {
-    return linkers_->NetworkRecvTime;
+    return linkers_->NetworkRecvTime / ratio;
   }
   else
   {
-    return linkers_->NetworkSendRecvTime;
+    return linkers_->NetworkSendRecvTime / ratio;
   }
 }
 

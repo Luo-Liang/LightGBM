@@ -288,7 +288,7 @@ inline void Linkers::Recv(int rank, char *data, int len)
                                      std::min(len - recv_cnt, SocketConfig::kMaxReceiveSize));
   }
   InferredTranferredBytes += len;
-  NetworkRecvTime += t.s();
+  NetworkRecvTime += t.ns();
 }
 
 inline void Linkers::Send(int rank, char *data, int len)
@@ -308,7 +308,7 @@ inline void Linkers::Send(int rank, char *data, int len)
     send_cnt += linkers_[rank]->Send(data + send_cnt, len - send_cnt);
   }
   InferredTranferredBytes += len;
-  NetworkSendTime += t.s();
+  NetworkSendTime += t.ns();
 }
 
 inline void Linkers::SendRecv(int send_rank, char *send_data, int send_len,
@@ -335,7 +335,7 @@ inline void Linkers::SendRecv(int send_rank, char *send_data, int send_len,
     Recv(recv_rank, recv_data, recv_len);
     send_worker.join();
   }
-  NetworkSendRecvTime += t.s();
+  NetworkSendRecvTime += t.ns();
 }
 
 #endif // USE_SOCKET
@@ -359,7 +359,7 @@ inline void Linkers::Recv(int rank, char *data, int len)
     read_cnt += cur_cnt;
   }
   InferredTranferredBytes += len;
-  NetworkRecvTime += t.s();
+  NetworkRecvTime += t.ns();
 }
 
 inline void Linkers::Send(int rank, char *data, int len)
@@ -378,7 +378,7 @@ inline void Linkers::Send(int rank, char *data, int len)
   MPI_SAFE_CALL(MPI_Isend(data, len, MPI_BYTE, rank, 0, MPI_COMM_WORLD, &send_request));
   MPI_SAFE_CALL(MPI_Wait(&send_request, &status));
   InferredTranferredBytes += len;
-  NetworkSendTime += t.s();
+  NetworkSendTime += t.ns();
 }
 
 inline void Linkers::SendRecv(int send_rank, char *send_data, int send_len,
@@ -405,7 +405,7 @@ inline void Linkers::SendRecv(int send_rank, char *send_data, int send_len,
   // wait for send complete
   MPI_SAFE_CALL(MPI_Wait(&send_request, &status));
   InferredTranferredBytes += send_len + recv_len;
-  NetworkSendRecvTime += t.s();
+  NetworkSendRecvTime += t.ns();
 }
 
 #endif // USE_MPI
