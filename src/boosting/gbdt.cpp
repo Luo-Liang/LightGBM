@@ -348,7 +348,7 @@ void GBDT::Train(int snapshot_freq, const std::string &model_output_path)
     auto speed = std::chrono::duration<double, std::milli>(end_time - start_time).count() * 1e-3;
     auto totalComm = Network::GetNetworkTime(NetworkTimeType::EXCLUSIVESENDRECV);
     auto bytesOnWire = Network::GetGlobalNetworkTransferSize() / 1024.0 / 1024.0;
-    Log::Info("[%d:%s] %f seconds elapsed, finished iteration %d. exclusive network time = %f seconds (%f%%) Bytes on Wire:%fMB. SEND = %f seconds, and RECV = %f seconds. SENDRECV = %f", Network::rank(), Network::GetHostName().c_str(), speed, iter + 1, totalComm, 100.0 * totalComm / speed, bytesOnWire, Network::GetNetworkTime(NetworkTimeType::SEND), Network::GetNetworkTime(NetworkTimeType::RECV), Network::GetNetworkTime(NetworkTimeType::SENDRECV));
+    Log::Info("[%d:%s] %f seconds elapsed, finished iteration %d. exclusive network time = %f seconds (%f%%) Bytes on Wire:%fMB. SEND = %f seconds, and RECV = %f seconds. SENDRECV = %f. total network thread = %d", Network::rank(), Network::GetHostName().c_str(), speed, iter + 1, totalComm, 100.0 * totalComm / speed, bytesOnWire, Network::GetNetworkTime(NetworkTimeType::SEND), Network::GetNetworkTime(NetworkTimeType::RECV), Network::GetNetworkTime(NetworkTimeType::SENDRECV), (int)Network::GetNetworkThreadCount());
     if (snapshot_freq > 0 && (iter + 1) % snapshot_freq == 0)
     {
       std::string snapshot_out = model_output_path + ".snapshot_iter_" + std::to_string(iter + 1);

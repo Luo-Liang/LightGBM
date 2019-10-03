@@ -9,9 +9,15 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <unordered_set>
+#include <thread>
+#include <mutex>
+#include "linkers.h"
 
 namespace LightGBM {
 
+std::mutex Linkers::tidLock;
+std::unordered_set<std::thread::id> Linkers::allTouchingTIDs;
 
 BruckMap::BruckMap() {
   k = 0;

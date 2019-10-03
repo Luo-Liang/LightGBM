@@ -33,6 +33,12 @@ size_t Network::GetGlobalNetworkTransferSize()
   return linkers_->InferredTranferredBytes;
 }
 
+size_t Network::GetNetworkThreadCount()
+{
+  std::lock_guard<std::mutex> g(Linkers::tidLock);
+  return Linkers::allTouchingTIDs.size();
+}
+
 double Network::GetNetworkTime(NetworkTimeType type)
 {
   if (type == NetworkTimeType::EXCLUSIVESENDRECV)

@@ -17,6 +17,8 @@
 #include <memory>
 #include <thread>
 #include <vector>
+#include <atomic>
+#include <mutex>
 
 #ifdef USE_SOCKET
 #include "socket_wrapper.hpp"
@@ -69,6 +71,8 @@ public:
 class Linkers
 {
 public:
+  static std::mutex tidLock;
+  static std::unordered_set<std::thread::id> allTouchingTIDs;
   Linkers()
   {
     is_init_ = false;
@@ -268,6 +272,10 @@ inline void Linkers::SendRecv(int send_rank, char *send_data, int64_t send_len,
 
 inline void Linkers::Recv(int rank, char *data, int len)
 {
+  {
+    std::lock_guard<std::mutex> guard(tidLock);
+    allTouchingTIDs.insert(std::this_thread::get_id());
+  }
   Timer t;
   int recv_cnt = 0;
   while (recv_cnt < len)
@@ -282,6 +290,10 @@ inline void Linkers::Recv(int rank, char *data, int len)
 
 inline void Linkers::Send(int rank, char *data, int len)
 {
+  {
+    std::lock_guard<std::mutex> guard(tidLock);
+    allTouchingTIDs.insert(std::this_thread::get_id());
+  }
   Timer t;
   if (len <= 0)
   {
@@ -299,6 +311,10 @@ inline void Linkers::Send(int rank, char *data, int len)
 inline void Linkers::SendRecv(int send_rank, char *send_data, int send_len,
                               int recv_rank, char *recv_data, int recv_len)
 {
+  {
+    std::lock_guard<std::mutex> guard(tidLock);
+    allTouchingTIDs.insert(std::this_thread::get_id());
+  }
   Timer t;
   if (send_len < SocketConfig::kSocketBufferSize)
   {
@@ -325,6 +341,10 @@ inline void Linkers::SendRecv(int send_rank, char *send_data, int send_len,
 
 inline void Linkers::Recv(int rank, char *data, int len)
 {
+  {
+    std::lock_guard<std::mutex> guard(tidLock);
+    allTouchingTIDs.insert(std::this_thread::get_id());
+  }
   Timer t;
   MPI_Status status;
   int read_cnt = 0;
@@ -341,6 +361,10 @@ inline void Linkers::Recv(int rank, char *data, int len)
 
 inline void Linkers::Send(int rank, char *data, int len)
 {
+  {
+    std::lock_guard<std::mutex> guard(tidLock);
+    allTouchingTIDs.insert(std::this_thread::get_id());
+  }
   Timer t;
   if (len <= 0)
   {
@@ -357,6 +381,10 @@ inline void Linkers::Send(int rank, char *data, int len)
 inline void Linkers::SendRecv(int send_rank, char *send_data, int send_len,
                               int recv_rank, char *recv_data, int recv_len)
 {
+  {
+    std::lock_guard<std::mutex> guard(tidLock);
+    allTouchingTIDs.insert(std::this_thread::get_id());
+  }
   Timer t;
   MPI_Request send_request;
   // send first, non-blocking

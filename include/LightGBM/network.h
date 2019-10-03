@@ -98,6 +98,7 @@ enum NetworkTimeType
 class Network {
  public:
   static size_t GetGlobalNetworkTransferSize();
+  static size_t GetNetworkThreadCount();
 
   static double GetNetworkTime(NetworkTimeType type);
   static std::string GetHostName()
