@@ -9,21 +9,24 @@
 #include <LightGBM/meta.h>
 #include <LightGBM/utils/log.h>
 #include <boost/asio/ip/host_name.hpp>
-
-
+#include <unordered_set>
+#include <mutex>
+#include <thread>
 
 #include <functional>
 #include <memory>
 #include <vector>
 
-namespace LightGBM {
+namespace LightGBM
+{
 
 /*! \brief forward declaration */
 class Linkers;
 
 /*! \brief The network structure for all_gather */
-class BruckMap {
- public:
+class BruckMap
+{
+public:
   /*! \brief The communication times for one all gather operation */
   int k;
   /*! \brief in_ranks[i] means the incomming rank on i-th communication */
@@ -49,15 +52,17 @@ class BruckMap {
 *        if the group has 2 machines, this group will have two type of nodes, one is the leader.
 *        leader will represent this group and communication with others.
 */
-enum RecursiveHalvingNodeType {
-  Normal,  // normal node, 1 group only have 1 machine
-  GroupLeader,  // leader of group when number of machines in this group is 2.
-  Other  // non-leader machines in group
+enum RecursiveHalvingNodeType
+{
+  Normal,      // normal node, 1 group only have 1 machine
+  GroupLeader, // leader of group when number of machines in this group is 2.
+  Other        // non-leader machines in group
 };
 
 /*! \brief Network structure for recursive halving algorithm */
-class RecursiveHalvingMap {
- public:
+class RecursiveHalvingMap
+{
+public:
   /*! \brief Communication times for one recursize halving algorithm  */
   int k;
   /*! \brief Node type */
@@ -95,10 +100,13 @@ enum NetworkTimeType
   EXCLUSIVESENDRECV
 };
 /*! \brief A static class that contains some collective communication algorithm */
-class Network {
- public:
+class Network
+{
+public:
   static size_t GetGlobalNetworkTransferSize();
   static size_t GetNetworkThreadCount();
+  static std::mutex networkGuard;
+  static std::unordered_set<std::thread::id> networkTIDs;
 
   static double GetNetworkTime(NetworkTimeType type);
   static std::string GetHostName()
@@ -131,8 +139,8 @@ class Network {
   * \param output Output result
   * \param reducer Reduce function
   */
-  static void Allreduce(char* input, comm_size_t input_size, int type_size,
-                        char* output, const ReduceFunction& reducer);
+  static void Allreduce(char *input, comm_size_t input_size, int type_size,
+                        char *output, const ReduceFunction &reducer);
 
   /*!
   * \brief Perform all_reduce by using all_gather. it can be use to reduce communication time when data is small
@@ -142,8 +150,8 @@ class Network {
   * \param output Output result
   * \param reducer Reduce function
   */
-  static void AllreduceByAllGather(char* input, comm_size_t input_size, int type_size, char* output,
-                                   const ReduceFunction& reducer);
+  static void AllreduceByAllGather(char *input, comm_size_t input_size, int type_size, char *output,
+                                   const ReduceFunction &reducer);
 
   /*!
   * \brief Performing all_gather by using bruck algorithm. 
@@ -153,7 +161,7 @@ class Network {
   * \param send_size The size of input data
   * \param output Output result
   */
-  static void Allgather(char* input, comm_size_t send_size, char* output);
+  static void Allgather(char *input, comm_size_t send_size, char *output);
 
   /*!
   * \brief Performing all_gather by using bruck algorithm. 
@@ -165,7 +173,7 @@ class Network {
   * \param output Output result
   * \param all_size The size of output data
   */
-  static void Allgather(char* input, const comm_size_t* block_start, const comm_size_t* block_len, char* output, comm_size_t all_size);
+  static void Allgather(char *input, const comm_size_t *block_start, const comm_size_t *block_len, char *output, comm_size_t all_size);
 
   /*!
   * \brief Perform reduce scatter by using recursive halving algorithm. 
@@ -179,152 +187,167 @@ class Network {
   * \param output_size size of output data
   * \param reducer Reduce function
   */
-  static void ReduceScatter(char* input, comm_size_t input_size, int type_size,
-                            const comm_size_t* block_start, const comm_size_t* block_len, char* output, comm_size_t output_size,
-                            const ReduceFunction& reducer);
+  static void ReduceScatter(char *input, comm_size_t input_size, int type_size,
+                            const comm_size_t *block_start, const comm_size_t *block_len, char *output, comm_size_t output_size,
+                            const ReduceFunction &reducer);
 
-  template<class T>
-  static T GlobalSyncUpByMin(T local) {
+  template <class T>
+  static T GlobalSyncUpByMin(T local)
+  {
     T global = local;
-    Allreduce(reinterpret_cast<char*>(&local),
+    Allreduce(reinterpret_cast<char *>(&local),
               sizeof(local), sizeof(local),
-              reinterpret_cast<char*>(&global),
-              [] (const char* src, char* dst, int type_size, comm_size_t len) {
-      comm_size_t used_size = 0;
-      const T *p1;
-      T *p2;
-      while (used_size < len) {
-        p1 = reinterpret_cast<const T *>(src);
-        p2 = reinterpret_cast<T *>(dst);
-        if (*p1 < *p2) {
-          std::memcpy(dst, src, type_size);
-        }
-        src += type_size;
-        dst += type_size;
-        used_size += type_size;
-      }
-    });
+              reinterpret_cast<char *>(&global),
+              [](const char *src, char *dst, int type_size, comm_size_t len) {
+                comm_size_t used_size = 0;
+                const T *p1;
+                T *p2;
+                while (used_size < len)
+                {
+                  p1 = reinterpret_cast<const T *>(src);
+                  p2 = reinterpret_cast<T *>(dst);
+                  if (*p1 < *p2)
+                  {
+                    std::memcpy(dst, src, type_size);
+                  }
+                  src += type_size;
+                  dst += type_size;
+                  used_size += type_size;
+                }
+              });
     return global;
   }
-  template<class T>
-  static T GlobalSyncUpByMax(T local) {
+  template <class T>
+  static T GlobalSyncUpByMax(T local)
+  {
     T global = local;
-    Allreduce(reinterpret_cast<char*>(&local),
+    Allreduce(reinterpret_cast<char *>(&local),
               sizeof(local), sizeof(local),
-              reinterpret_cast<char*>(&global),
-              [] (const char* src, char* dst, int type_size, comm_size_t len) {
-      comm_size_t used_size = 0;
-      const T *p1;
-      T *p2;
-      while (used_size < len) {
-        p1 = reinterpret_cast<const T *>(src);
-        p2 = reinterpret_cast<T *>(dst);
-        if (*p1 > *p2) {
-          std::memcpy(dst, src, type_size);
-        }
-        src += type_size;
-        dst += type_size;
-        used_size += type_size;
-      }
-    });
+              reinterpret_cast<char *>(&global),
+              [](const char *src, char *dst, int type_size, comm_size_t len) {
+                comm_size_t used_size = 0;
+                const T *p1;
+                T *p2;
+                while (used_size < len)
+                {
+                  p1 = reinterpret_cast<const T *>(src);
+                  p2 = reinterpret_cast<T *>(dst);
+                  if (*p1 > *p2)
+                  {
+                    std::memcpy(dst, src, type_size);
+                  }
+                  src += type_size;
+                  dst += type_size;
+                  used_size += type_size;
+                }
+              });
     return global;
   }
 
-  template<class T>
-  static T GlobalSyncUpBySum(T local) {
+  template <class T>
+  static T GlobalSyncUpBySum(T local)
+  {
     T global = (T)0;
-    Allreduce(reinterpret_cast<char*>(&local),
-      sizeof(local), sizeof(local),
-      reinterpret_cast<char*>(&global),
-      [](const char* src, char* dst, int type_size, comm_size_t len) {
-        comm_size_t used_size = 0;
-        const T* p1;
-        T* p2;
-        while (used_size < len) {
-          p1 = reinterpret_cast<const T*>(src);
-          p2 = reinterpret_cast<T*>(dst);
-          *p2 += *p1;
-          src += type_size;
-          dst += type_size;
-          used_size += type_size;
-        }
-      });
+    Allreduce(reinterpret_cast<char *>(&local),
+              sizeof(local), sizeof(local),
+              reinterpret_cast<char *>(&global),
+              [](const char *src, char *dst, int type_size, comm_size_t len) {
+                comm_size_t used_size = 0;
+                const T *p1;
+                T *p2;
+                while (used_size < len)
+                {
+                  p1 = reinterpret_cast<const T *>(src);
+                  p2 = reinterpret_cast<T *>(dst);
+                  *p2 += *p1;
+                  src += type_size;
+                  dst += type_size;
+                  used_size += type_size;
+                }
+              });
     return static_cast<T>(global);
   }
 
-  template<class T>
-  static T GlobalSyncUpByMean(T local) {
+  template <class T>
+  static T GlobalSyncUpByMean(T local)
+  {
     return static_cast<T>(GlobalSyncUpBySum(local) / num_machines_);
   }
 
-  template<class T>
-  static std::vector<T> GlobalSum(std::vector<T>* local) {
+  template <class T>
+  static std::vector<T> GlobalSum(std::vector<T> *local)
+  {
     std::vector<T> global(local->size(), 0);
-    Allreduce(reinterpret_cast<char*>(local->data()),
+    Allreduce(reinterpret_cast<char *>(local->data()),
               static_cast<comm_size_t>(sizeof(T) * local->size()), sizeof(T),
-              reinterpret_cast<char*>(global.data()),
-              [](const char* src, char* dst, int type_size, comm_size_t len) {
-      comm_size_t used_size = 0;
-      const T *p1;
-      T *p2;
-      while (used_size < len) {
-        p1 = reinterpret_cast<const T *>(src);
-        p2 = reinterpret_cast<T *>(dst);
-        *p2 += *p1;
-        src += type_size;
-        dst += type_size;
-        used_size += type_size;
-      }
-    });
+              reinterpret_cast<char *>(global.data()),
+              [](const char *src, char *dst, int type_size, comm_size_t len) {
+                comm_size_t used_size = 0;
+                const T *p1;
+                T *p2;
+                while (used_size < len)
+                {
+                  p1 = reinterpret_cast<const T *>(src);
+                  p2 = reinterpret_cast<T *>(dst);
+                  *p2 += *p1;
+                  src += type_size;
+                  dst += type_size;
+                  used_size += type_size;
+                }
+              });
     return global;
   }
 
- private:
-  static void AllgatherBruck(char* input, const comm_size_t* block_start, const comm_size_t* block_len, char* output, comm_size_t all_size);
+private:
+  static void CheckOnlyOneThreadTouching();
+  
+  static void AllgatherBruck(char *input, const comm_size_t *block_start, const comm_size_t *block_len, char *output, comm_size_t all_size);
 
-  static void AllgatherRecursiveDoubling(char* input, const comm_size_t* block_start, const comm_size_t* block_len, char* output, comm_size_t all_size);
+  static void AllgatherRecursiveDoubling(char *input, const comm_size_t *block_start, const comm_size_t *block_len, char *output, comm_size_t all_size);
 
-  static void AllgatherRing(char* input, const comm_size_t* block_start, const comm_size_t* block_len, char* output, comm_size_t all_size);
+  static void AllgatherRing(char *input, const comm_size_t *block_start, const comm_size_t *block_len, char *output, comm_size_t all_size);
 
-  static void ReduceScatterRecursiveHalving(char* input, comm_size_t input_size, int type_size,
-                                            const comm_size_t* block_start, const comm_size_t* block_len, char* output, comm_size_t output_size,
-                                            const ReduceFunction& reducer);
+  static void ReduceScatterRecursiveHalving(char *input, comm_size_t input_size, int type_size,
+                                            const comm_size_t *block_start, const comm_size_t *block_len, char *output, comm_size_t output_size,
+                                            const ReduceFunction &reducer);
 
-  static void ReduceScatterRing(char* input, comm_size_t input_size, int type_size,
-                                const comm_size_t* block_start, const comm_size_t* block_len, char* output, comm_size_t output_size,
-                                const ReduceFunction& reducer);
+  static void ReduceScatterRing(char *input, comm_size_t input_size, int type_size,
+                                const comm_size_t *block_start, const comm_size_t *block_len, char *output, comm_size_t output_size,
+                                const ReduceFunction &reducer);
 
   /*! \brief Number of all machines */
-  static THREAD_LOCAL int num_machines_;
+  static int num_machines_;
   /*! \brief Rank of local machine */
-  static THREAD_LOCAL int rank_;
+  static int rank_;
   /*! \brief The network interface, provide send/recv functions  */
-  static THREAD_LOCAL std::unique_ptr<Linkers> linkers_;
+  static std::unique_ptr<Linkers> linkers_;
   /*! \brief Bruck map for all gather algorithm*/
-  static THREAD_LOCAL BruckMap bruck_map_;
+  static BruckMap bruck_map_;
   /*! \brief Recursive halving map for reduce scatter */
-  static THREAD_LOCAL RecursiveHalvingMap recursive_halving_map_;
+  static RecursiveHalvingMap recursive_halving_map_;
   /*! \brief Buffer to store block start index */
-  static THREAD_LOCAL std::vector<comm_size_t> block_start_;
+  static std::vector<comm_size_t> block_start_;
   /*! \brief Buffer to store block size */
-  static THREAD_LOCAL std::vector<comm_size_t> block_len_;
+  static std::vector<comm_size_t> block_len_;
   /*! \brief Buffer  */
-  static THREAD_LOCAL std::vector<char> buffer_;
+  static std::vector<char> buffer_;
   /*! \brief Size of buffer_ */
-  static THREAD_LOCAL comm_size_t buffer_size_;
+  static comm_size_t buffer_size_;
   /*! \brief Funcs*/
-  static THREAD_LOCAL ReduceScatterFunction reduce_scatter_ext_fun_;
-  static THREAD_LOCAL AllgatherFunction allgather_ext_fun_;
+  static ReduceScatterFunction reduce_scatter_ext_fun_;
+  static AllgatherFunction allgather_ext_fun_;
 };
 
-inline int Network::rank() {
+inline int Network::rank()
+{
   return rank_;
 }
 
-inline int Network::num_machines() {
+inline int Network::num_machines()
+{
   return num_machines_;
 }
 
-}  // namespace LightGBM
+} // namespace LightGBM
 
-#endif   // LightGBM_NETWORK_H_
+#endif // LightGBM_NETWORK_H_

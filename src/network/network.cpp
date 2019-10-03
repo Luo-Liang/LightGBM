@@ -8,6 +8,7 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <thread>
 
 #include "linkers.h"
 
@@ -15,18 +16,20 @@ namespace LightGBM
 {
 
 // static member definition
-THREAD_LOCAL int Network::num_machines_ = 1;
-THREAD_LOCAL int Network::rank_ = 0;
-THREAD_LOCAL std::unique_ptr<Linkers> Network::linkers_;
-THREAD_LOCAL BruckMap Network::bruck_map_;
-THREAD_LOCAL RecursiveHalvingMap Network::recursive_halving_map_;
-THREAD_LOCAL std::vector<comm_size_t> Network::block_start_;
-THREAD_LOCAL std::vector<comm_size_t> Network::block_len_;
-THREAD_LOCAL comm_size_t Network::buffer_size_ = 0;
-THREAD_LOCAL std::vector<char> Network::buffer_;
-THREAD_LOCAL ReduceScatterFunction Network::reduce_scatter_ext_fun_ = nullptr;
-THREAD_LOCAL AllgatherFunction Network::allgather_ext_fun_ = nullptr;
-THREAD_LOCAL bool CommParadigmSignaled = false;
+int Network::num_machines_ = 1;
+int Network::rank_ = 0;
+std::mutex Network::networkGuard;
+std::unordered_set<std::thread::id> Network::networkTIDs;
+std::unique_ptr<Linkers> Network::linkers_;
+BruckMap Network::bruck_map_;
+RecursiveHalvingMap Network::recursive_halving_map_;
+std::vector<comm_size_t> Network::block_start_;
+std::vector<comm_size_t> Network::block_len_;
+comm_size_t Network::buffer_size_ = 0;
+std::vector<char> Network::buffer_;
+ReduceScatterFunction Network::reduce_scatter_ext_fun_ = nullptr;
+AllgatherFunction Network::allgather_ext_fun_ = nullptr;
+bool CommParadigmSignaled = false;
 
 size_t Network::GetGlobalNetworkTransferSize()
 {
@@ -191,15 +194,26 @@ void Network::AllreduceByAllGather(char *input, comm_size_t input_size, int type
   std::memcpy(output, buffer_.data(), input_size);
 }
 
-void PrintTimestampToLog(int rank, std::string prefix)
+// void PrintTimestampToLog(int rank, std::string prefix)
+// {
+//   //auto ms = duration_cast<microseconds>(system_clock::now().time_since_epoch()).count();
+//   //Log::Info("[%d:%" PRIu64 "] %s.", rank, ms, prefix.c_str());
+// }
+
+void Network::CheckOnlyOneThreadTouching()
 {
-  //auto ms = duration_cast<microseconds>(system_clock::now().time_since_epoch()).count();
-  //Log::Info("[%d:%" PRIu64 "] %s.", rank, ms, prefix.c_str());
+  std::lock_guard<std::mutex> g(networkGuard);
+  networkTIDs.insert(std::this_thread::get_id());
+  auto sz = networkTIDs.size();
+  if(sz != 1)
+  {
+    Log::Fatal("Network class is touched by more than 1 thread.");
+  }
 }
 
 void Network::Allgather(char *input, comm_size_t send_size, char *output)
 {
-  PrintTimestampToLog(rank_, " Allgather");
+  //PrintTimestampToLog(rank_, " Allgather");
   if (num_machines_ <= 1)
   {
     Log::Fatal("Please initilize the network interface first");
@@ -215,7 +229,7 @@ void Network::Allgather(char *input, comm_size_t send_size, char *output)
   }
   // start all gather
   Allgather(input, block_start_.data(), block_len_.data(), output, send_size * num_machines_);
-  PrintTimestampToLog(rank_, " rehtagllA");
+  //PrintTimestampToLog(rank_, " rehtagllA");
 }
 
 void Network::Allgather(char *input, const comm_size_t *block_start, const comm_size_t *block_len, char *output, comm_size_t all_size)
@@ -363,7 +377,7 @@ void Network::ReduceScatter(char *input, comm_size_t input_size, int type_size,
                             const comm_size_t *block_start, const comm_size_t *block_len, char *output,
                             comm_size_t output_size, const ReduceFunction &reducer)
 {
-  PrintTimestampToLog(rank_, "ReduceScatter");
+  //PrintTimestampToLog(rank_, "ReduceScatter");
   if (num_machines_ <= 1)
   {
     Log::Fatal("Please initilize the network interface first");
@@ -399,7 +413,7 @@ void Network::ReduceScatter(char *input, comm_size_t input_size, int type_size,
   {
     Log::Fatal("unimplemented reduce scatter");
   }
-  PrintTimestampToLog(rank_, "rettacSecudeR");
+  //PrintTimestampToLog(rank_, "rettacSecudeR");
 }
 
 void Network::ReduceScatterRecursiveHalving(char *input, comm_size_t input_size, int type_size,
