@@ -106,7 +106,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
   Log::Info("[%d] reduce_scatter_size_ = %d", Network::rank(), reduce_scatter_size_);
   for (size_t i = 0; i < block_len_.size(); i++)
   {
-    Log::Info("[%d] block size = %d. elements = %d. perfectly aligned = %d", Network::rank(), block_len_[i], block_len_[i] / sizeof(HistogramBinEntry), block_len_[i] % sizeof(HistogramBinEntry));
+    Log::Info("[%d] block size = %d. elements = %d. perfectly aligned = %d", Network::rank(), block_len_[i], block_len_[i] / sizeof(HistogramBinEntry), block_len_[i] % sizeof(HistogramBinEntry) == 0);
   }
 
   block_start_[0] = 0;
