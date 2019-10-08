@@ -8,7 +8,6 @@
 #include <LightGBM/config.h>
 #include <LightGBM/meta.h>
 #include <LightGBM/utils/log.h>
-#include <boost/asio/ip/host_name.hpp>
 #include <unordered_set>
 #include <mutex>
 #include <thread>
@@ -111,8 +110,7 @@ public:
   static double GetNetworkTime(NetworkTimeType type);
   static std::string GetHostName()
   {
-    auto host_name = boost::asio::ip::host_name();
-    return host_name;
+    return "NA";
   }
   /*!
   * \brief Initialize

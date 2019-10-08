@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "parallel_tree_learner.h"
+#include <PHub.h>
 
 namespace LightGBM
 {
@@ -27,11 +28,17 @@ void DataParallelTreeLearner<TREELEARNER_T>::Init(const Dataset *train_data, boo
 {
   // initialize SerialTreeLearner
   TREELEARNER_T::Init(train_data, is_constant_hessian);
+  //initialize parameter Hub.
   // Get local rank and global machine size
   rank_ = Network::rank();
   num_machines_ = Network::num_machines();
   // allocate buffer for communication
   size_t buffer_size = this->train_data_->NumTotalBin() * sizeof(HistogramBinEntry);
+
+  //this is the maximum possible buffer size a PHub ever need. 
+  //since we are going to multiplex keys, we need buffer_size * num_machines to just be sure.
+
+  size_t totalBufferSize = buffer_size * num_machines_;
 
   input_buffer_.resize(buffer_size);
   output_buffer_.resize(buffer_size);
