@@ -8,6 +8,7 @@
 
 #include "parallel_tree_learner.h"
 #include <PHub.h>
+#include <Integration.h>
 
 namespace LightGBM
 {
@@ -24,6 +25,43 @@ DataParallelTreeLearner<TREELEARNER_T>::~DataParallelTreeLearner()
 }
 
 template <typename TREELEARNER_T>
+void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
+{
+  rank_ = Network::rank();
+  num_machines_ = Network::num_machines();
+  // allocate buffer for communication
+  size_t buffer_size = this->train_data_->NumTotalBin() * sizeof(HistogramBinEntry);
+
+  //this is the maximum possible buffer size a PHub ever need.
+  //since we are going to multiplex keys, we need buffer_size * num_machines to just be sure.
+
+  size_t totalBufferSize = buffer_size * num_machines_;
+  pHubBackingBuffer.resize(totalBufferSize);
+
+  /* PHub(std::string redezvousUri,
+		 std::unordered_map<NodeId, std::string> &nodeToIP,
+		 ///size in bytes!!!
+		 std::vector<int> &sizes,
+		 //addresses
+		 std::vector<void *> &applicationSuppliedAddrs,
+		 int totalParticipant,
+		 int elementWidth,
+		 NodeId Id,
+		 PHubLaunchPreference &preference,
+		 PHubDataType datatype = PHubDataType::FLOAT);*/
+  var nodeMap = getPHubNodeMap(num_machines_, rank_, 0);
+  var launchPref = retrieveLaunchPreferenceFromEnv(0);
+  var chunkElements = atoi(pHubGetMandatoryEnvironmemtVariable("PHubChunkElementSize").c_str());
+  CHECK(chunkElements > 0);
+  std::vector<size_t> keyCounts;
+  std::vector<size_t> keySizes;
+  std::vector<void*> keyAddrs;
+
+  getChunkedInformationGivenBuffer();
+
+}
+
+template <typename TREELEARNER_T>
 void DataParallelTreeLearner<TREELEARNER_T>::Init(const Dataset *train_data, bool is_constant_hessian)
 {
   // initialize SerialTreeLearner
@@ -34,11 +72,6 @@ void DataParallelTreeLearner<TREELEARNER_T>::Init(const Dataset *train_data, boo
   num_machines_ = Network::num_machines();
   // allocate buffer for communication
   size_t buffer_size = this->train_data_->NumTotalBin() * sizeof(HistogramBinEntry);
-
-  //this is the maximum possible buffer size a PHub ever need. 
-  //since we are going to multiplex keys, we need buffer_size * num_machines to just be sure.
-
-  size_t totalBufferSize = buffer_size * num_machines_;
 
   input_buffer_.resize(buffer_size);
   output_buffer_.resize(buffer_size);

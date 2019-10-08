@@ -11,6 +11,7 @@
 #include <cstring>
 #include <memory>
 #include <vector>
+#include <PHub.h>
 
 #include "gpu_tree_learner.h"
 #include "serial_tree_learner.h"
@@ -58,6 +59,7 @@ class DataParallelTreeLearner: public TREELEARNER_T {
   void ResetConfig(const Config* config) override;
 
  protected:
+  void InitializePHub();
   void BeforeTrain() override;
   void FindBestSplits() override;
   void FindBestSplitsFromHistograms(const std::vector<int8_t>& is_feature_used, bool use_subtract) override;
@@ -72,6 +74,8 @@ class DataParallelTreeLearner: public TREELEARNER_T {
   }
 
  private:
+  std::vector<char> pHubBackingBuffer;
+  std::shared_ptr<PHub> pHub = nullptr;
   /*! \brief Rank of local machine */
   int rank_;
   /*! \brief Number of machines of this parallel task */
