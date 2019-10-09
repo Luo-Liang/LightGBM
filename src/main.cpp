@@ -3,13 +3,15 @@
  * Licensed under the MIT License. See LICENSE file in the project root for license information.
  */
 #include <LightGBM/application.h>
-
+#include <easy/profiler.h>
 #include <iostream>
 
 int main(int argc, char** argv) {
+  EASY_PROFILER_ENABLE;
   try {
     LightGBM::Application app(argc, argv);
     app.Run();
+    profiler::dumpBlocksToFile("lightgbm.network.profile");
   }
   catch (const std::exception& ex) {
     std::cerr << "Met Exceptions:" << std::endl;
