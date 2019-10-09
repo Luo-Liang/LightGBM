@@ -57,7 +57,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
   std::vector<size_t> keySizes;
   std::vector<void*> keyAddrs;
 
-  getChunkedInformationGivenBuffer();
+  getChunkedInformationGivenBuffer()
 
 }
 
