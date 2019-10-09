@@ -14,6 +14,8 @@
 #include <chrono>
 #include <ctime>
 #include <sstream>
+#include <easy/profiler.h>
+#include <easy/arbitrary_value.h>
 
 namespace LightGBM {
 
@@ -276,9 +278,11 @@ void GBDT::Bagging(int iter) {
 }
 
 void GBDT::Train(int snapshot_freq, const std::string& model_output_path) {
+  EASY_FUNCTION(profiler::colors::Orange);
   bool is_finished = false;
   auto start_time = std::chrono::steady_clock::now();
   for (int iter = 0; iter < config_->num_iterations && !is_finished; ++iter) {
+    EASY_VALUE("iter", iter);
     is_finished = TrainOneIter(nullptr, nullptr);
     if (!is_finished) {
       is_finished = EvalAndCheckEarlyStopping();
