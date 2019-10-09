@@ -37,6 +37,8 @@ elseif(MSVC)
   cmake_minimum_required(VERSION 3.8)
 endif()
 
+include_directories(/home/ubuntu/easy_profiler/easy_profiler_core/include)
+
 if(USE_SWIG)
   find_package(SWIG REQUIRED)
   find_package(Java REQUIRED)
