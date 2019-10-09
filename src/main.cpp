@@ -11,7 +11,7 @@ int main(int argc, char** argv) {
   try {
     LightGBM::Application app(argc, argv);
     app.Run();
-    profiler::dumpBlocksToFile("lightgbm.network.profile");
+    profiler::dumpBlocksToFile("lightgbm.network.prof");
   }
   catch (const std::exception& ex) {
     std::cerr << "Met Exceptions:" << std::endl;
