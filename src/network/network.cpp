@@ -73,6 +73,7 @@ void Network::Dispose()
 
 void Network::Allreduce(char *input, comm_size_t input_size, int type_size, char *output, const ReduceFunction &reducer)
 {
+  Log::Info("[%d] calling allreduce", rank_);
   EASY_FUNCTION(profiler::colors::Amber200); 
   EASY_VALUE("Allreduceinput_size", input_size);
 
@@ -286,6 +287,7 @@ void Network::ReduceScatter(char *input, comm_size_t input_size, int type_size,
                             const comm_size_t *block_start, const comm_size_t *block_len, char *output,
                             comm_size_t output_size, const ReduceFunction &reducer)
 {
+  Log::Info("[%d] calling ReduceScatter", rank_);
   EASY_FUNCTION(profiler::colors::Magenta); 
   EASY_ARRAY("ReduceScatterblock_len", block_len, num_machines_, profiler::colors::Navy);
   if (num_machines_ <= 1)
