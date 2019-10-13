@@ -41,9 +41,36 @@ DataParallelTreeLearner<TREELEARNER_T>::~DataParallelTreeLearner()
       dst += type_size;
       used_size += type_size;
     }
+  }
+
+
+  const char *src, char *dst, int type_size, comm_size_t len) {
+    comm_size_t used_size = 0;
+    const std::tuple<data_size_t, double, double> *p1;
+    std::tuple<data_size_t, double, double> *p2;
+    while (used_size < len)
+    {
+      p1 = reinterpret_cast<const std::tuple<data_size_t, double, double> *>(src);
+      p2 = reinterpret_cast<std::tuple<data_size_t, double, double> *>(dst);
+      std::get<0>(*p2) = std::get<0>(*p2) + std::get<0>(*p1);
+      std::get<1>(*p2) = std::get<1>(*p2) + std::get<1>(*p1);
+      std::get<2>(*p2) = std::get<2>(*p2) + std::get<2>(*p1);
+      src += type_size;
+      dst += type_size;
+      used_size += type_size;
+    }
   }*/
 
-inline void PHubHistogramBinEntrySumReducer(char *src, char *dst)
+void PHubTuple3Reducer(char *src, char *dst)
+{
+  std::tuple<data_size_t, double, double> *src_t = (std::tuple<data_size_t, double, double> *)(src);
+  std::tuple<data_size_t, double, double> *dst_t = (std::tuple<data_size_t, double, double> *)(dst);
+  std::get<0>(*dst_t) +=  std::get<0>(*src_t);
+  std::get<1>(*dst_t) +=  std::get<1>(*src_t);
+  std::get<2>(*dst_t) +=  std::get<2>(*src_t);
+}
+
+void PHubHistogramBinEntrySumReducer(char *src, char *dst)
 {
   HistogramBinEntry *source = (HistogramBinEntry *)src;
   HistogramBinEntry *dest = (HistogramBinEntry *)dst;
@@ -84,7 +111,6 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
   size_t totalBins = numbin * num_machines_;
   auto total_buffer_size = buffer_size * num_machines_;
   pHubBackingBufferForReduceScatter.resize(total_buffer_size);
-  pHubBackingBufferForAllReduce.resize(buffer_size);
   //void getChunkedInformationGivenBuffer(
   //void *ptr,
   //size_t elements,
@@ -100,11 +126,14 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
   int reduceScatterTotalKeyCount = reduceScatterPerMachineKeyCount * num_machines_;
   std::string reduceScatterSupplement = getKeyOwnershipString(num_machines_, reduceScatterPerMachineKeyCount);
   //std::shared_ptr<PHub> createPHubInstance(void *ptr, size_t count, int size, int rank, int instanceId, PHubDataType dataType = PHubDataType::FLOAT, int elementWidth = sizeof(float), std::string scheduleSupplementaryData = "");
-  setenv("PLINK_SCHEDULE_TYPE", "allreduce", 1);
-  pHubReduceScatter = createPHubInstance(pHubBackingBufferForReduceScatter.data(), reduceScatterTotalKeyCount, num_machines_, rank_, 0, PHubDataType::CUSTOM, sizeof(HistogramBinEntry), reduceScatterSupplement);
-
-  int allreduceTotalKeyCount = numbin / chunkSize;
   setenv("PLINK_SCHEDULE_TYPE", "reducescatter", 1);
+  pHubReduceScatter = createPHubInstance(pHubBackingBufferForReduceScatter.data(), reduceScatterTotalKeyCount, num_machines_, rank_, 0, PHubDataType::CUSTOM, sizeof(HistogramBinEntry), reduceScatterSupplement);
+  pHubReduceScatter->SetReductionFunction(&PHubHistogramBinEntrySumReducer);
+
+  const int PHUB_ALL_REDUCE_KEY0_SIZE = 1024;
+  pHubBackingBufferForAllReduce.resize(PHUB_ALL_REDUCE_KEY0_SIZE);
+  int allreduceTotalKeyCount = 1;
+  setenv("PLINK_SCHEDULE_TYPE", "allreduce", 1);
   pHubAllReduce = createPHubInstance(pHubBackingBufferForAllReduce.data(), allreduceTotalKeyCount, num_machines_, rank_, 1, PHubDataType::CUSTOM, sizeof(HistogramBinEntry));
 }
 
@@ -149,6 +178,8 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
   // generate feature partition for current tree
   std::vector<std::vector<int>> feature_distribution(num_machines_, std::vector<int>());
   std::vector<int> num_bins_distributed(num_machines_, 0);
+
+  reduceScatterInnerFid2NodeMapping.resize(this->train_data_->num_total_features());
   for (int i = 0; i < this->train_data_->num_total_features(); ++i)
   {
     int inner_feature_index = this->train_data_->InnerFeatureIndex(i);
@@ -160,6 +191,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
     {
       int cur_min_machine = static_cast<int>(ArrayArgs<int>::ArgMin(num_bins_distributed));
       feature_distribution[cur_min_machine].push_back(inner_feature_index);
+      reduceScatterInnerFid2NodeMapping.at(inner_feature_index) = cur_min_machine;
       auto num_bin = this->train_data_->FeatureNumBin(inner_feature_index);
       if (this->train_data_->FeatureBinMapper(inner_feature_index)->GetDefaultBin() == 0)
       {
@@ -239,6 +271,8 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
   int size = sizeof(data);
   std::memcpy(input_buffer_.data(), &data, size);
   // global sumup reduce
+
+  //this is a 20B allreduce. push everything to node 0, key 0.
   Network::Allreduce(input_buffer_.data(), size, sizeof(std::tuple<data_size_t, double, double>), output_buffer_.data(), [](const char *src, char *dst, int type_size, comm_size_t len) {
     comm_size_t used_size = 0;
     const std::tuple<data_size_t, double, double> *p1;
@@ -257,6 +291,17 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
   });
   // copy back
   std::memcpy(reinterpret_cast<void *>(&data), output_buffer_.data(), size);
+
+  //shadow operation. use this for correctness test.
+  CHECK(pHubAllReduce->RetrieveMergeBuffer(0).ActualBufferSizePaddedForSSE == 0);
+  //change source direction.
+  pHubAllReduce->ApplicationSuppliedAddrs.at(0) = &data;
+  //change reduction function
+  pHubAllReduce->SetReductionFunction(&PHubTuple3Reducer);
+  //change target output position.
+  pHubAllReduce->ApplicationSuppliedOutputAddrs.at(0) = &data;
+  pHubAllReduce->keySizes.at(size);
+  pHubAllReduce->Reduce();
   // set global sumup info
   this->smaller_leaf_splits_->Init(std::get<1>(data), std::get<2>(data));
   // init global data count in leaf
@@ -278,7 +323,6 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
                 this->smaller_leaf_histogram_array_[feature_index].RawData(),
                 this->smaller_leaf_histogram_array_[feature_index].SizeOfHistgram());
     //copy to plink
-
   }
   // Reduce scatter for histogram
   Network::ReduceScatter(input_buffer_.data(), reduce_scatter_size_, sizeof(HistogramBinEntry), block_start_.data(),

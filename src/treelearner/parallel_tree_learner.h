@@ -81,14 +81,16 @@ protected:
   }
 
 private:
+  static std::vector<PLinkKey> PHUBKEYZERO{0};
   std::vector<char> pHubBackingBufferForReduceScatter;
   std::vector<char> pHubBackingBufferForAllReduce;
+  std::vector<int> reduceScatterInnerFid2NodeMapping;
+
   int pHubReduceScatterPerNodeKeyCount = 0;
   int pHubAllReducePerNodeKeyCount = 0;
 
   std::shared_ptr<PHub> pHubReduceScatter = nullptr;
   std::shared_ptr<PHub> pHubAllReduce = nullptr;
-
 
   /*! \brief Rank of local machine */
   int rank_;
@@ -108,7 +110,7 @@ private:
   /*! \brief Write positions for feature histograms */
   std::vector<comm_size_t> buffer_write_start_pos_;
   /*! \brief Read positions for local feature histograms */
-  std::vector<comm_size_t> buffer_read_start_pos_;
+  std::vector<comm_size_t> bu ffer_read_start_pos_;
   /*! \brief Size for reduce scatter */
   comm_size_t reduce_scatter_size_;
   /*! \brief Store global number of data in leaves  */
@@ -209,8 +211,21 @@ private:
   std::vector<FeatureMetainfo> feature_metas_;
 };
 
+void PHubReducerForSyncUpGlobalBestSplit(char *src, char *dst)
+{
+  //src: new data.
+  LightSplitInfo p1;
+  LightSplitInfo p2;
+  p1.CopyFrom(src);
+  p2.CopyFrom(dst);
+  if (p1 > p2)
+  {
+    std::memcpy(dst, src, SplitInfo::Size(32));
+  }
+}
+
 // To-do: reduce the communication cost by using bitset to communicate.
-inline void SyncUpGlobalBestSplit(char *input_buffer_, char *output_buffer_, SplitInfo *smaller_best_split, SplitInfo *larger_best_split, int max_cat_threshold)
+inline void SyncUpGlobalBestSplit(char *input_buffer_, char *output_buffer_, SplitInfo *smaller_best_split, SplitInfo *larger_best_split, int max_cat_threshold, std::shared_ptr<PHub> pHub = nullptr)
 {
   // sync global best info
   int size = SplitInfo::Size(max_cat_threshold);
@@ -233,6 +248,23 @@ inline void SyncUpGlobalBestSplit(char *input_buffer_, char *output_buffer_, Spl
                          used_size += size;
                        }
                      });
+
+  //enable shadow plink reduction inplace.
+  //two sizes at most in reduction
+  if (pHub != nullptr)
+  {
+    CHECK(size * 2 <= pHub->keySizes.at(0));
+    //make sure PHub is set up correctly
+    //redirect read location
+    pHub->ApplicationSuppliedAddrs.at(0) = input_buffer_;
+    pHub->keySizes.at(0) = 2 * size;
+    pHub->ApplicationSuppliedOutputAddrs.at(0) = output_buffer_;
+    //i have only 1 key.
+    CHECK(max_cat_threshold == 32) << "PHub currently hardcodes max_cat_threshold.";
+    pHub->SetReductionFunction(PHubReducerForSyncUpGlobalBestSplit);
+    pHub->Reduce();
+  }
+
   // copy back
   smaller_best_split->CopyFrom(output_buffer_);
   larger_best_split->CopyFrom(output_buffer_ + size);
