@@ -21,7 +21,7 @@ int main(int argc, char **argv)
       tm *timenow;
       time_t now = time(NULL);
       timenow = gmtime(&now);
-      strftime(filename, sizeof(filename), "lightgbm_%Y-%m-%d_%H-%M-%S.profile", timenow);
+      strftime(filename, sizeof(filename), "lightgbm_%Y-%m-%d_%H-%M-%S.prof", timenow);
       fName = std::string(filename);
     }
     profiler::dumpBlocksToFile(fName.c_str());
