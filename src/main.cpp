@@ -6,13 +6,16 @@
 #include <easy/profiler.h>
 #include <iostream>
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv)
+{
   EASY_PROFILER_ENABLE;
-  try {
+  try
+  {
     LightGBM::Application app(argc, argv);
     app.Run();
-    std::string fName(std::getenv("LIGHTGBM_PROFILE_NAME"));
-    if(fName == "")
+    auto envFileName = std::getenv("LIGHTGBM_PROFILE_NAME");
+    std::string fName(envFileName == NULL ? "" : envFileName);
+    if (fName == "")
     {
       char filename[128];
       tm *timenow;
@@ -23,17 +26,20 @@ int main(int argc, char** argv) {
     }
     profiler::dumpBlocksToFile(fName.c_str());
   }
-  catch (const std::exception& ex) {
+  catch (const std::exception &ex)
+  {
     std::cerr << "Met Exceptions:" << std::endl;
     std::cerr << ex.what() << std::endl;
     exit(-1);
   }
-  catch (const std::string& ex) {
+  catch (const std::string &ex)
+  {
     std::cerr << "Met Exceptions:" << std::endl;
     std::cerr << ex << std::endl;
     exit(-1);
   }
-  catch (...) {
+  catch (...)
+  {
     std::cerr << "Unknown Exceptions" << std::endl;
     exit(-1);
   }
