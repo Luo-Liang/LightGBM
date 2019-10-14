@@ -11,7 +11,17 @@ int main(int argc, char** argv) {
   try {
     LightGBM::Application app(argc, argv);
     app.Run();
-    profiler::dumpBlocksToFile("lightgbm.network.prof");
+    std::string fName(std::getenv("LIGHTGBM_PROFILE_NAME"));
+    if(fName == "")
+    {
+      char filename[128];
+      tm *timenow;
+      time_t now = time(NULL);
+      timenow = gmtime(&now);
+      strftime(filename, sizeof(filename), "lightgbm_%Y-%m-%d_%H-%M-%S.profile", timenow);
+      fName = std::string(filename);
+    }
+    profiler::dumpBlocksToFile(fName.c_str());
   }
   catch (const std::exception& ex) {
     std::cerr << "Met Exceptions:" << std::endl;
