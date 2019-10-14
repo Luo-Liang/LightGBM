@@ -65,9 +65,9 @@ void PHubTuple3Reducer(char *src, char *dst)
 {
   std::tuple<data_size_t, double, double> *src_t = (std::tuple<data_size_t, double, double> *)(src);
   std::tuple<data_size_t, double, double> *dst_t = (std::tuple<data_size_t, double, double> *)(dst);
-  std::get<0>(*dst_t) +=  std::get<0>(*src_t);
-  std::get<1>(*dst_t) +=  std::get<1>(*src_t);
-  std::get<2>(*dst_t) +=  std::get<2>(*src_t);
+  std::get<0>(*dst_t) += std::get<0>(*src_t);
+  std::get<1>(*dst_t) += std::get<1>(*src_t);
+  std::get<2>(*dst_t) += std::get<2>(*src_t);
 }
 
 void PHubHistogramBinEntrySumReducer(char *src, char *dst)
@@ -103,14 +103,25 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
 {
   rank_ = Network::rank();
   num_machines_ = Network::num_machines();
+
   // allocate buffer for communication
   auto chunkSize = atoi(pHubGetMandatoryEnvironmemtVariable("PHubChunkElementSize").c_str());
+  pHubChunkSize = chunkSize;
   size_t numbin = RoundUp(this->train_data_->NumTotalBin(), chunkSize);
 
   size_t buffer_size = numbin * sizeof(HistogramBinEntry);
+  reduceScatterPerNodeBufferSize = buffer_size;
   size_t totalBins = numbin * num_machines_;
   auto total_buffer_size = buffer_size * num_machines_;
   pHubBackingBufferForReduceScatter.resize(total_buffer_size);
+  reduceScatterNodeStartingAddress.resize(num_machines_);
+  reduceScatterNodeStartingKey.resize(num_machines_);
+  for (int i = 0; i < num_machines_; i++)
+  {
+    reduceScatterNodeByteCounters.push_back(std::make_unique<std::atomic>(0));
+    reduceScatterNodeStartingAddress.at(i) = pHubBackingBufferForReduceScatter.data() + i * buffer_size;
+    reduceScatterNodeStartingKey.at(i) = i * numbin;
+  }
   //void getChunkedInformationGivenBuffer(
   //void *ptr,
   //size_t elements,
@@ -197,8 +208,10 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
       {
         num_bin -= 1;
       }
-      num_bins_distributed[cur_min_machine] += num_bin;
+
+      [cur_min_machine] += num_bin;
     }
+    *(reduceScatterNodeByteCounters.at(i)) = 0;
     is_feature_aggregated_[inner_feature_index] = false;
   }
   // get local used feature
@@ -313,6 +326,8 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
 {
   TREELEARNER_T::ConstructHistograms(this->is_feature_used_, true);
   // construct local histograms
+
+  //I am skeptical whether OMP will help in this case.
 #pragma omp parallel for schedule(static)
   for (int feature_index = 0; feature_index < this->num_features_; ++feature_index)
   {
@@ -323,10 +338,32 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
                 this->smaller_leaf_histogram_array_[feature_index].RawData(),
                 this->smaller_leaf_histogram_array_[feature_index].SizeOfHistgram());
     //copy to plink
+    auto nodeId = reduceScatterInnerFid2NodeMapping.at(feature_index);
+    auto fid2Loc = reduceScatterNodeByteCounters.at(nodeId)->fetch_add(this->smaller_leaf_histogram_array_[feature_index].SizeOfHistgram(), std::memory_order_relaxed) + reduceScatterNodeStartingAddress.at(nodeId);
+    std::memcpy(fid2Loc, this->smaller_leaf_histogram_array_[feature_index].RawData(), this->smaller_leaf_histogram_array_[feature_index].SizeOfHistgram());
+    //how do we know where to copy back? we cannot have PLink directly write to output buffer because plink operates at key level.
+    //good news is the key assignment makes sure bins belong to the same node are continuous.
   }
+
   // Reduce scatter for histogram
   Network::ReduceScatter(input_buffer_.data(), reduce_scatter_size_, sizeof(HistogramBinEntry), block_start_.data(),
                          block_len_.data(), output_buffer_.data(), static_cast<comm_size_t>(output_buffer_.size()), &HistogramBinEntry::SumReducer);
+  //for PHub, we need to first figure out keys, and this is very simple
+  std::vector<PLinkKey> tasks;
+  for (int i = 0; i < num_machines_; i++)
+  {
+    PLinkKey start = reduceScatterNodeStartingKey.at(i);
+    int count = (int)ceil(1.0 * reduceScatterNodeByteCounters.at(i) / pHubChunkSize);
+    for (PLinkKey key = start; key < start + count; key++)
+    {
+      //plink key supports basic arith,
+      tasks.push_back(key);
+    }
+  }
+  pHubReduceScatter->Reduce(tasks);
+  //now copy back. simple
+  std::memcpy(output_buffer_, reduceScatterNodeStartingAddress.at(rank_), reduceScatterNodeByteCounters.at(rank_)));
+
   this->FindBestSplitsFromHistograms(this->is_feature_used_, true);
 }
 

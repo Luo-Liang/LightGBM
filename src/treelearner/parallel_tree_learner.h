@@ -12,7 +12,7 @@
 #include <memory>
 #include <vector>
 #include <PHub.h>
-
+#include <atomic>
 #include "gpu_tree_learner.h"
 #include "serial_tree_learner.h"
 
@@ -81,13 +81,17 @@ protected:
   }
 
 private:
-  static std::vector<PLinkKey> PHUBKEYZERO{0};
   std::vector<char> pHubBackingBufferForReduceScatter;
   std::vector<char> pHubBackingBufferForAllReduce;
   std::vector<int> reduceScatterInnerFid2NodeMapping;
+  std::vector<std::unique_ptr<std::atomic<int>>> reduceScatterNodeByteCounters;
+  std::vector<void*> reduceScatterNodeStartingAddress;
+  std::vector<PLinkKey> reduceScatterNodeStartingKey;
 
+  int reduceScatterPerNodeBufferSize = 0;
   int pHubReduceScatterPerNodeKeyCount = 0;
   int pHubAllReducePerNodeKeyCount = 0;
+  int pHubChunkSize = 0;
 
   std::shared_ptr<PHub> pHubReduceScatter = nullptr;
   std::shared_ptr<PHub> pHubAllReduce = nullptr;
@@ -260,7 +264,7 @@ inline void SyncUpGlobalBestSplit(char *input_buffer_, char *output_buffer_, Spl
     pHub->keySizes.at(0) = 2 * size;
     pHub->ApplicationSuppliedOutputAddrs.at(0) = output_buffer_;
     //i have only 1 key.
-    CHECK(max_cat_threshold == 32) << "PHub currently hardcodes max_cat_threshold.";
+    CHECK(max_cat_threshold == 32) << "PHub currently hardcodes max_cat_threshold to 32. actual = " << max_cat_threshold;
     pHub->SetReductionFunction(PHubReducerForSyncUpGlobalBestSplit);
     pHub->Reduce();
   }
