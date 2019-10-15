@@ -114,7 +114,7 @@ private:
   /*! \brief Write positions for feature histograms */
   std::vector<comm_size_t> buffer_write_start_pos_;
   /*! \brief Read positions for local feature histograms */
-  std::vector<comm_size_t> bu ffer_read_start_pos_;
+  std::vector<comm_size_t> buffer_read_start_pos_;
   /*! \brief Size for reduce scatter */
   comm_size_t reduce_scatter_size_;
   /*! \brief Store global number of data in leaves  */
@@ -215,7 +215,8 @@ private:
   std::vector<FeatureMetainfo> feature_metas_;
 };
 
-void PHubReducerForSyncUpGlobalBestSplit(char *src, char *dst)
+//duplicated includes.
+inline void PHubReducerForSyncUpGlobalBestSplit(char *src, char *dst)
 {
   //src: new data.
   LightSplitInfo p1;
