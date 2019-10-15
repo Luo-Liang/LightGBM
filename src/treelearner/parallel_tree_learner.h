@@ -11,7 +11,7 @@
 #include <cstring>
 #include <memory>
 #include <vector>
-#include <PHub.h>
+#include <Integration.h>
 #include <atomic>
 #include "gpu_tree_learner.h"
 #include "serial_tree_learner.h"

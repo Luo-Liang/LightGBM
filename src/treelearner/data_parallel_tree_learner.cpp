@@ -8,8 +8,6 @@
 #include <math.h>
 
 #include "parallel_tree_learner.h"
-#include <PHub.h>
-#include <Integration.h>
 
 namespace LightGBM
 {
