@@ -17,7 +17,7 @@ int main(int argc, char **argv)
     std::string fName(envFileName == NULL ? "" : envFileName);
     if (fName == "")
     {
-      char filename[128];
+      char filename[2048];
       tm *timenow;
       time_t now = time(NULL);
       timenow = gmtime(&now);
