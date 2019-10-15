@@ -265,7 +265,7 @@ inline void SyncUpGlobalBestSplit(char *input_buffer_, char *output_buffer_, Spl
     pHub->keySizes.at(0) = 2 * size;
     pHub->ApplicationSuppliedOutputAddrs.at(0) = output_buffer_;
     //i have only 1 key.
-    CHECK(max_cat_threshold == 32) << "PHub currently hardcodes max_cat_threshold to 32. actual = " << max_cat_threshold;
+    PHUB_CHECK(max_cat_threshold == 32) << "PHub currently hardcodes max_cat_threshold to 32. actual = " << max_cat_threshold;
     pHub->SetReductionFunction(PHubReducerForSyncUpGlobalBestSplit);
     pHub->Reduce();
   }
