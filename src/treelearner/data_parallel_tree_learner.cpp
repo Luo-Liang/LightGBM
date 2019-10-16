@@ -142,6 +142,11 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
   pHubBackingBufferForAllReduce.resize(PHUB_ALL_REDUCE_KEY0_SIZE);
   int allreduceTotalKeyCount = 1;
   setenv("PLINK_SCHEDULE_TYPE", "allreduce", 1);
+  if(getenv("PHubMaximumCore") != nullptr)
+  {
+    //sets phubcoreoffset to continue right after max core.
+    setenv("PHubCoreOffset", getenv("PHubMaximumCore"), 1);
+  }
   pHubAllReduce = createPHubInstance(pHubBackingBufferForAllReduce.data(), allreduceTotalKeyCount, num_machines_, rank_, 1, PHubDataType::CUSTOM, sizeof(HistogramBinEntry));
 }
 
