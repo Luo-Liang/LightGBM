@@ -217,7 +217,6 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
 
       num_bins_distributed[cur_min_machine] += num_bin;
     }
-    *(reduceScatterNodeByteCounters.at(i)) = 0;
     is_feature_aggregated_[inner_feature_index] = false;
   }
   // get local used feature
@@ -231,6 +230,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
   for (int i = 0; i < num_machines_; ++i)
   {
     block_len_[i] = 0;
+    *(reduceScatterNodeByteCounters.at(i)) = 0;
     for (auto fid : feature_distribution[i])
     {
       auto num_bin = this->train_data_->FeatureNumBin(fid);
