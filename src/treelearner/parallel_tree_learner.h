@@ -267,6 +267,7 @@ inline void SyncUpGlobalBestSplit(char *input_buffer_, char *output_buffer_, Spl
     //redirect read location
     pHub->ApplicationSuppliedAddrs.at(0) = input_buffer_;
     pHub->ApplicationSuppliedOutputAddrs.at(0) = output_buffer_;
+    COMPILER_BARRIER();
     //i have only 1 key.
     PHUB_CHECK(max_cat_threshold == 32) << "PHub currently hardcodes max_cat_threshold to 32. actual = " << max_cat_threshold;
     pHub->Reduce();

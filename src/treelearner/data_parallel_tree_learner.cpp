@@ -21,7 +21,8 @@ DataParallelTreeLearner<TREELEARNER_T>::DataParallelTreeLearner(const Config *co
 template <typename TREELEARNER_T>
 DataParallelTreeLearner<TREELEARNER_T>::~DataParallelTreeLearner()
 {
-  pHubAllReduce->FastTerminate();
+  pHubAllReduceT3->FastTerminate();
+  pHubAllReduceSplitInfo->FastTerminate();
   pHubReduceScatter->FastTerminate();
 }
 
@@ -150,7 +151,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
     //sets phubcoreoffset to continue right after max core.
     setenv("PHubCoreOffset", getenv("PHubMaximumCore"), 1);
   }
-  pHubAllReduceT3 = createPHubInstance(pHubBackingBufferForAllReduce.data(), 1, num_machines_, rank_, 1, PHubDataType::CUSTOM, PHUB_ALL_REDUCE_T3_KEY0_SIZE);
+  pHubAllReduceT3 = createPHubInstance(pHubBackingBufferForAllReduceT3.data(), 1, num_machines_, rank_, 1, PHubDataType::CUSTOM, PHUB_ALL_REDUCE_T3_KEY0_SIZE);
   pHubAllReduceT3->SetReductionFunction(&PHubTuple3Reducer);
 
   int PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE = 2 * SplitInfo::Size(this->config_->max_cat_threshold);
@@ -322,7 +323,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
 
   pHubAllReduceT3->ApplicationSuppliedAddrs.at(0) = &data;
   pHubAllReduceT3->ApplicationSuppliedOutputAddrs.at(0) = &data;
-  COMPILER_BARRIER;
+  COMPILER_BARRIER();
   //fine, no race, because syncrhonziation points introduced by work queues.
   pHubAllReduceT3->Reduce();
   // set global sumup info
