@@ -142,16 +142,22 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
   pHubReduceScatter = createPHubInstance(pHubBackingBufferForReduceScatter.data(), reduceScatterTotalKeyCount, num_machines_, rank_, 0, PHubDataType::CUSTOM, sizeof(HistogramBinEntry), reduceScatterSupplement);
   pHubReduceScatter->SetReductionFunction(&PHubHistogramBinEntrySumReducer);
 
-  const int PHUB_ALL_REDUCE_KEY0_SIZE = 1024;
-  pHubBackingBufferForAllReduce.resize(PHUB_ALL_REDUCE_KEY0_SIZE);
-  int allreduceTotalKeyCount = 1;
+  const int PHUB_ALL_REDUCE_T3_KEY0_SIZE = sizeof(std::tuple<data_size_t, double, double>);
+  pHubBackingBufferForAllReduceT3.resize(PHUB_ALL_REDUCE_T3_KEY0_SIZE);
   setenv("PLINK_SCHEDULE_TYPE", "allreduce", 1);
   if (getenv("PHubMaximumCore") != nullptr)
   {
     //sets phubcoreoffset to continue right after max core.
     setenv("PHubCoreOffset", getenv("PHubMaximumCore"), 1);
   }
-  pHubAllReduce = createPHubInstance(pHubBackingBufferForAllReduce.data(), allreduceTotalKeyCount, num_machines_, rank_, 1, PHubDataType::CUSTOM, PHUB_ALL_REDUCE_KEY0_SIZE);
+  pHubAllReduceT3 = createPHubInstance(pHubBackingBufferForAllReduce.data(), 1, num_machines_, rank_, 1, PHubDataType::CUSTOM, PHUB_ALL_REDUCE_T3_KEY0_SIZE);
+  pHubAllReduceT3->SetReductionFunction(&PHubTuple3Reducer);
+
+  int PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE = 2 * SplitInfo::Size(this->config_->max_cat_threshold);
+  pHubBackingBufferForAllReduceSplitInfo.resize(PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE);
+  pHubAllReduceSplitInfo = createPHubInstance(pHubBackingBufferForAllReduceSplitInfo.data(), 1, num_machines_, rank_, 2, PHubDataType::CUSTOM, PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE / 2);
+  pHubAllReduceSplitInfo->SetReductionFunction(&PHubReducerForSyncUpGlobalBestSplit);
+
 }
 
 template <typename TREELEARNER_T>
@@ -313,14 +319,12 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
 
   //shadow operation. use this for correctness test.
   //change source direction.
-  pHubAllReduce->ApplicationSuppliedAddrs.at(0) = &data;
-  //change reduction function
-  pHubAllReduce->SetReductionFunction(&PHubTuple3Reducer);
-  //change target output position.
-  pHubAllReduce->ApplicationSuppliedOutputAddrs.at(0) = &data;
-  pHubAllReduce->keySizes.at(0) = size;
-  pHubAllReduce->ElementWidth = size;
-  pHubAllReduce->Reduce();
+
+  pHubAllReduceT3->ApplicationSuppliedAddrs.at(0) = &data;
+  pHubAllReduceT3->ApplicationSuppliedOutputAddrs.at(0) = &data;
+  COMPILER_BARRIER;
+  //fine, no race, because syncrhonziation points introduced by work queues.
+  pHubAllReduceT3->Reduce();
   // set global sumup info
   this->smaller_leaf_splits_->Init(std::get<1>(data), std::get<2>(data));
   // init global data count in leaf
@@ -466,7 +470,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplitsFromHistograms(const 
   }
 
   // sync global best info
-  SyncUpGlobalBestSplit(input_buffer_.data(), input_buffer_.data(), &smaller_best_split, &larger_best_split, this->config_->max_cat_threshold);
+  SyncUpGlobalBestSplit(input_buffer_.data(), input_buffer_.data(), &smaller_best_split, &larger_best_split, this->config_->max_cat_threshold, pHubAllReduceSplitInfo);
 
   // set best split
   this->best_split_per_leaf_[this->smaller_leaf_splits_->LeafIndex()] = smaller_best_split;

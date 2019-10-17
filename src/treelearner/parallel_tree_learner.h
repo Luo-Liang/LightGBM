@@ -82,7 +82,9 @@ protected:
 
 private:
   std::vector<char> pHubBackingBufferForReduceScatter;
-  std::vector<char> pHubBackingBufferForAllReduce;
+  std::vector<char> pHubBackingBufferForAllReduceT3;
+  std::vector<char> pHubBackingBufferForAllReduceSplitInfo;
+
   std::vector<int> reduceScatterInnerFid2NodeMapping;
   std::vector<std::unique_ptr<std::atomic<int>>> reduceScatterNodeByteCounters;
   std::vector<void*> reduceScatterNodeStartingAddress;
@@ -94,7 +96,9 @@ private:
   int pHubChunkSize = 0;
 
   std::shared_ptr<PHub> pHubReduceScatter = nullptr;
-  std::shared_ptr<PHub> pHubAllReduce = nullptr;
+  std::shared_ptr<PHub> pHubAllReduceT3 = nullptr;
+  std::shared_ptr<PHub> pHubAllReduceSplitInfo = nullptr;
+
 
   /*! \brief Rank of local machine */
   int rank_;
@@ -258,15 +262,13 @@ inline void SyncUpGlobalBestSplit(char *input_buffer_, char *output_buffer_, Spl
   //two sizes at most in reduction
   if (pHub != nullptr)
   {
-    CHECK(size * 2 <= pHub->keySizes.at(0));
+    CHECK(size * 2 == pHub->keySizes.at(0));
     //make sure PHub is set up correctly
     //redirect read location
     pHub->ApplicationSuppliedAddrs.at(0) = input_buffer_;
-    pHub->keySizes.at(0) = 2 * size;
     pHub->ApplicationSuppliedOutputAddrs.at(0) = output_buffer_;
     //i have only 1 key.
     PHUB_CHECK(max_cat_threshold == 32) << "PHub currently hardcodes max_cat_threshold to 32. actual = " << max_cat_threshold;
-    pHub->SetReductionFunction(PHubReducerForSyncUpGlobalBestSplit);
     pHub->Reduce();
   }
 
