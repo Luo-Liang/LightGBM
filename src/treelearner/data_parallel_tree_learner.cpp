@@ -23,8 +23,6 @@ DataParallelTreeLearner<TREELEARNER_T>::~DataParallelTreeLearner()
 {
   pHubAllReduce->FastTerminate();
   pHubReduceScatter->FastTerminate();
-  pHubAllReduce.reset(nullptr);
-  pHubReduceScatter.reset(nullptr);
 }
 
 /*  inline static void SumReducer(const char *src, char *dst, int type_size, comm_size_t len) {
