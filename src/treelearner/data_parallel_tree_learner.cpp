@@ -319,6 +319,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
   //change target output position.
   pHubAllReduce->ApplicationSuppliedOutputAddrs.at(0) = &data;
   pHubAllReduce->keySizes.at(0) = size;
+  pHubAllReduce->ElementWidth = size;
   pHubAllReduce->Reduce();
   // set global sumup info
   this->smaller_leaf_splits_->Init(std::get<1>(data), std::get<2>(data));
