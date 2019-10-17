@@ -106,13 +106,14 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
   auto chunkSize = atoi(pHubGetMandatoryEnvironmemtVariable("PHubChunkElementSize").c_str());
   pHubChunkSize = chunkSize;
   size_t numbin = RoundUp(this->train_data_->NumTotalBin(), chunkSize);
-
   size_t buffer_size = numbin * sizeof(HistogramBinEntry);
   reduceScatterPerNodeBufferSize = buffer_size;
   auto total_buffer_size = buffer_size * num_machines_;
+
   pHubBackingBufferForReduceScatter.resize(total_buffer_size);
   reduceScatterNodeStartingAddress.resize(num_machines_);
   reduceScatterNodeStartingKey.resize(num_machines_);
+
   for (int i = 0; i < num_machines_; i++)
   {
     reduceScatterNodeByteCounters.push_back(std::make_unique<std::atomic<int>>(0));
@@ -129,12 +130,13 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
   //std::vector<void *> keyAddrs);
 
   //I need to figure out key ownership
-  CHECK(numbin % chunkSize == 0);
-  int reduceScatterPerMachineKeyCount = numbin / chunkSize;
+  PHUB_CHECK(numbin % chunkSize == 0);
+  int reduceScatterPerMachineKeyCount = numbin;
   int reduceScatterTotalKeyCount = reduceScatterPerMachineKeyCount * num_machines_;
   std::string reduceScatterSupplement = getKeyOwnershipString(num_machines_, reduceScatterPerMachineKeyCount);
   //std::shared_ptr<PHub> createPHubInstance(void *ptr, size_t count, int size, int rank, int instanceId, PHubDataType dataType = PHubDataType::FLOAT, int elementWidth = sizeof(float), std::string scheduleSupplementaryData = "");
   setenv("PLINK_SCHEDULE_TYPE", "reducescatter", 1);
+  PHUB_CHECK(pHubBackingBufferForReduceScatter.size() == reduceScatterTotalKeyCount * sizeof(HistogramBinEntry));
   pHubReduceScatter = createPHubInstance(pHubBackingBufferForReduceScatter.data(), reduceScatterTotalKeyCount, num_machines_, rank_, 0, PHubDataType::CUSTOM, sizeof(HistogramBinEntry), reduceScatterSupplement);
   pHubReduceScatter->SetReductionFunction(&PHubHistogramBinEntrySumReducer);
 
@@ -142,12 +144,12 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
   pHubBackingBufferForAllReduce.resize(PHUB_ALL_REDUCE_KEY0_SIZE);
   int allreduceTotalKeyCount = 1;
   setenv("PLINK_SCHEDULE_TYPE", "allreduce", 1);
-  if(getenv("PHubMaximumCore") != nullptr)
+  if (getenv("PHubMaximumCore") != nullptr)
   {
     //sets phubcoreoffset to continue right after max core.
     setenv("PHubCoreOffset", getenv("PHubMaximumCore"), 1);
   }
-  pHubAllReduce = createPHubInstance(pHubBackingBufferForAllReduce.data(), allreduceTotalKeyCount, num_machines_, rank_, 1, PHubDataType::CUSTOM, sizeof(HistogramBinEntry));
+  pHubAllReduce = createPHubInstance(pHubBackingBufferForAllReduce.data(), allreduceTotalKeyCount, num_machines_, rank_, 1, PHubDataType::CUSTOM, PHUB_ALL_REDUCE_KEY0_SIZE);
 }
 
 template <typename TREELEARNER_T>
@@ -329,7 +331,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
   // construct local histograms
 
   //I am skeptical whether OMP will help in this case.
-//#pragma omp parallel for schedule(static)
+  //#pragma omp parallel for schedule(static)
   for (int feature_index = 0; feature_index < this->num_features_; ++feature_index)
   {
     if ((!this->is_feature_used_.empty() && this->is_feature_used_[feature_index] == false))
@@ -340,7 +342,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
                 this->smaller_leaf_histogram_array_[feature_index].SizeOfHistgram());
     //copy to plink
     auto nodeId = reduceScatterInnerFid2NodeMapping.at(feature_index);
-    auto fid2Loc = reduceScatterNodeByteCounters.at(nodeId)->fetch_add(this->smaller_leaf_histogram_array_[feature_index].SizeOfHistgram(), std::memory_order_relaxed) + (char*)reduceScatterNodeStartingAddress.at(nodeId);
+    auto fid2Loc = reduceScatterNodeByteCounters.at(nodeId)->fetch_add(this->smaller_leaf_histogram_array_[feature_index].SizeOfHistgram(), std::memory_order_relaxed) + (char *)reduceScatterNodeStartingAddress.at(nodeId);
     std::memcpy(fid2Loc, this->smaller_leaf_histogram_array_[feature_index].RawData(), this->smaller_leaf_histogram_array_[feature_index].SizeOfHistgram());
     //how do we know where to copy back? we cannot have PLink directly write to output buffer because plink operates at key level.
     //good news is the key assignment makes sure bins belong to the same node are continuous.
@@ -366,7 +368,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
   pHubReduceScatter->Reduce(tasks);
   //now copy back. simple
   int copyBytes = reduceScatterNodeByteCounters.at(rank_)->load();
-  void* srcAddr = reduceScatterNodeStartingAddress.at(rank_);
+  void *srcAddr = reduceScatterNodeStartingAddress.at(rank_);
   std::memcpy(output_buffer_.data() + block_start_.at(rank_), srcAddr, copyBytes);
 
   this->FindBestSplitsFromHistograms(this->is_feature_used_, true);
