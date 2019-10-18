@@ -153,7 +153,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
     //sets phubcoreoffset to continue right after max core.
     setenv("PHubCoreOffset", getenv("PHubMaximumCore"), 1);
     setenv("PHubMaximumCore", "1", 1);
-
+    fprintf(stderr, "PHubCoreOffset is set to %s\n", getenv("PHubMaximumCore"));
   }
   pHubAllReduceT3 = createPHubInstance(pHubBackingBufferForAllReduceT3.data(), 1, num_machines_, rank_, 1, PHubDataType::CUSTOM, PHUB_ALL_REDUCE_T3_KEY0_SIZE);
   pHubAllReduceT3->SetReductionFunction(&PHubTuple3Reducer);
@@ -163,6 +163,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
     //sets phubcoreoffset to continue right after max core.
     auto reqCore = reduceScatterCores + 1; //this is for reduce scatter
     setenv("PHubCoreOffset", std::to_string(reqCore).c_str(), 1);
+    fprintf(stderr, "PHubCoreOffset is set to %s\n", std::to_string(reqCore).c_str());    
   }
   int PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE = 2 * SplitInfo::Size(this->config_->max_cat_threshold);
   pHubBackingBufferForAllReduceSplitInfo.resize(PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE);
