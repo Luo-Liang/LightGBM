@@ -248,6 +248,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
       block_len_[i] += num_bin * sizeof(HistogramBinEntry);
     }
     reduce_scatter_size_ += block_len_[i];
+    (*reduceScatterNodeByteCounters.at(i)) = 0;
   }
 
   // Log::Info("[%d] reduce_scatter_size_ = %d", Network::rank(), reduce_scatter_size_);
@@ -337,7 +338,6 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
 {
   TREELEARNER_T::ConstructHistograms(this->is_feature_used_, true);
   // construct local histograms
-
   //I am skeptical whether OMP will help in this case.
   //#pragma omp parallel for schedule(static)
   for (int feature_index = 0; feature_index < this->num_features_; ++feature_index)
@@ -365,7 +365,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
   {
     //check block length agrees
     PLinkKey start = reduceScatterNodeStartingKey.at(i);
-    PHUB_CHECK(block_len_.at(i) == reduceScatterNodeByteCounters.at(i)->load()) << "block_len_ is " << block_len_.at(i) << " vs. reduce scatter bytes" <<reduceScatterNodeByteCounters.at(i)->load();
+    PHUB_CHECK(block_len_.at(i) == reduceScatterNodeByteCounters.at(i)->load()) << " block_len_ is " << block_len_.at(i) << " vs. reduce scatter bytes " <<reduceScatterNodeByteCounters.at(i)->load();
     int count = (int)ceil(1.0 * reduceScatterNodeByteCounters.at(i)->load() / sizeof(HistogramBinEntry) / pHubChunkSize );
     for (PLinkKey key = start; key < start + count; key++)
     {
