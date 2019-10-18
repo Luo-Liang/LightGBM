@@ -248,7 +248,6 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
       block_len_[i] += num_bin * sizeof(HistogramBinEntry);
     }
     reduce_scatter_size_ += block_len_[i];
-    (*reduceScatterNodeByteCounters.at(i)) = 0;
   }
 
   // Log::Info("[%d] reduce_scatter_size_ = %d", Network::rank(), reduce_scatter_size_);
@@ -372,6 +371,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
       //plink key supports basic arith,
       tasks.push_back(key);
     }
+    *(reduceScatterNodeByteCounters.at(i)) = 0; //clear it. this func gets called many times in each iter.
   }
   pHubReduceScatter->Reduce(tasks);
   //now copy back. simple
