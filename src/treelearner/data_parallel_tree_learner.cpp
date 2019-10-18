@@ -166,7 +166,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
   pHubAllReduceSplitInfo = createPHubInstance(pHubBackingBufferForAllReduceSplitInfo.data(), 2, num_machines_, rank_, 2, PHubDataType::CUSTOM, PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE / 2);
   pHubAllReduceSplitInfo->SetReductionFunction(&PHubReducerForSyncUpGlobalBestSplit);
   pHubAllReduceSplitInfo->ApplicationSuppliedOutputAddrs.at(0) = pHubBackingBufferForAllReduceSplitInfo.data();
-  pHub->ApplicationSuppliedAddrs.at(0) = input_buffer_;
+  pHubAllReduceSplitInfo->ApplicationSuppliedAddrs.at(0) = input_buffer_.data();
 }
 
 template <typename TREELEARNER_T>
@@ -397,7 +397,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
   void *srcAddr = reduceScatterNodeStartingAddress.at(rank_);
 
   //shadow run
-  PHUB_CHECK(memcmp(srcAddr, output_buffer_, copyBytes) == 0);
+  PHUB_CHECK(memcmp(srcAddr, output_buffer_.data(), copyBytes) == 0);
   std::memcpy(output_buffer_.data() + block_start_.at(rank_), srcAddr, copyBytes);
 
   this->FindBestSplitsFromHistograms(this->is_feature_used_, true);
