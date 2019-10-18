@@ -87,7 +87,7 @@ private:
 
   std::vector<int> reduceScatterInnerFid2NodeMapping;
   std::vector<std::unique_ptr<std::atomic<int>>> reduceScatterNodeByteCounters;
-  std::vector<void*> reduceScatterNodeStartingAddress;
+  std::vector<void *> reduceScatterNodeStartingAddress;
   std::vector<PLinkKey> reduceScatterNodeStartingKey;
 
   int reduceScatterPerNodeBufferSize = 0;
@@ -98,7 +98,6 @@ private:
   std::shared_ptr<PHub> pHubReduceScatter = nullptr;
   std::shared_ptr<PHub> pHubAllReduceT3 = nullptr;
   std::shared_ptr<PHub> pHubAllReduceSplitInfo = nullptr;
-
 
   /*! \brief Rank of local machine */
   int rank_;
@@ -240,7 +239,7 @@ inline void SyncUpGlobalBestSplit(char *input_buffer_, char *output_buffer_, Spl
   int size = SplitInfo::Size(max_cat_threshold);
   smaller_best_split->CopyTo(input_buffer_);
   larger_best_split->CopyTo(input_buffer_ + size);
-  
+
   /*
   Network::Allreduce(input_buffer_, size * 2, size, output_buffer_,
                      [](const char *src, char *dst, int size, comm_size_t len) {
@@ -260,7 +259,9 @@ inline void SyncUpGlobalBestSplit(char *input_buffer_, char *output_buffer_, Spl
                        }
                      });
   */
-
+  // copy back
+  smaller_best_split->CopyFrom(output_buffer_);
+  larger_best_split->CopyFrom(output_buffer_ + size);
   //enable shadow plink reduction inplace.
   //two sizes at most in reduction
   //if (pHub != nullptr)
@@ -268,17 +269,15 @@ inline void SyncUpGlobalBestSplit(char *input_buffer_, char *output_buffer_, Spl
     CHECK(size * 2 == pHub->keySizes.at(0));
     //make sure PHub is set up correctly
     //redirect read location
-    pHub->ApplicationSuppliedAddrs.at(0) = input_buffer_;
-    pHub->ApplicationSuppliedOutputAddrs.at(0) = output_buffer_;
+
     COMPILER_BARRIER();
     //i have only 1 key.
     PHUB_CHECK(max_cat_threshold == 32) << "PHub currently hardcodes max_cat_threshold to 32. actual = " << max_cat_threshold;
     pHub->Reduce();
+    //shadow run
+    //i need bit by bit equal.
+    PHUB_CHECK(memcmp(pHub->ApplicationSuppliedOutputAddrs.at(0), output_buffer_, 2 * size) == 0);
   }
-
-  // copy back
-  smaller_best_split->CopyFrom(output_buffer_);
-  larger_best_split->CopyFrom(output_buffer_ + size);
 }
 
 } // namespace LightGBM

@@ -165,6 +165,8 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
   pHubBackingBufferForAllReduceSplitInfo.resize(PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE);
   pHubAllReduceSplitInfo = createPHubInstance(pHubBackingBufferForAllReduceSplitInfo.data(), 2, num_machines_, rank_, 2, PHubDataType::CUSTOM, PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE / 2);
   pHubAllReduceSplitInfo->SetReductionFunction(&PHubReducerForSyncUpGlobalBestSplit);
+  pHubAllReduceSplitInfo->ApplicationSuppliedOutputAddrs.at(0) = pHubBackingBufferForAllReduceSplitInfo.data();
+  pHub->ApplicationSuppliedAddrs.at(0) = input_buffer_;
 }
 
 template <typename TREELEARNER_T>
@@ -301,7 +303,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
   std::tuple<data_size_t, double, double> data(this->smaller_leaf_splits_->num_data_in_leaf(),
                                                this->smaller_leaf_splits_->sum_gradients(), this->smaller_leaf_splits_->sum_hessians());
   int size = sizeof(data);
-  /*
+
   std::memcpy(input_buffer_.data(), &data, size);
   // global sumup reduce
 
@@ -327,13 +329,17 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
 
   //shadow operation. use this for correctness test.
   //change source direction.
-  */
+
+  auto data1 = data;
 
   pHubAllReduceT3->ApplicationSuppliedAddrs.at(0) = &data;
   pHubAllReduceT3->ApplicationSuppliedOutputAddrs.at(0) = &data;
   COMPILER_BARRIER();
   //fine, no race, because syncrhonziation points introduced by work queues.
   pHubAllReduceT3->Reduce();
+
+  PHUB_CHECK(data1 == data);
+
   // set global sumup info
   this->smaller_leaf_splits_->Init(std::get<1>(data), std::get<2>(data));
   // init global data count in leaf
@@ -352,12 +358,10 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
     if ((!this->is_feature_used_.empty() && this->is_feature_used_[feature_index] == false))
       continue;
     // copy to buffer
-    /*
-    
+
     std::memcpy(input_buffer_.data() + buffer_write_start_pos_[feature_index],
                 this->smaller_leaf_histogram_array_[feature_index].RawData(),
                 this->smaller_leaf_histogram_array_[feature_index].SizeOfHistgram());
-    */
 
     //copy to plink
     auto nodeId = reduceScatterInnerFid2NodeMapping.at(feature_index);
@@ -369,10 +373,9 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
 
   // Reduce scatter for histogram
 
-  //Network::ReduceScatter(input_buffer_.data(), reduce_scatter_size_, sizeof(HistogramBinEntry), block_start_.data(),
-  //                       block_len_.data(), output_buffer_.data(), static_cast<comm_size_t>(output_buffer_.size()), &HistogramBinEntry::SumReducer);
-  
-  
+  Network::ReduceScatter(input_buffer_.data(), reduce_scatter_size_, sizeof(HistogramBinEntry), block_start_.data(),
+                         block_len_.data(), output_buffer_.data(), static_cast<comm_size_t>(output_buffer_.size()), &HistogramBinEntry::SumReducer);
+
   //for PHub, we need to first figure out keys, and this is very simple
   std::vector<PLinkKey> tasks;
   for (int i = 0; i < num_machines_; i++)
@@ -392,6 +395,9 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
   //now copy back. simple
   int copyBytes = reduceScatterNodeByteCounters.at(rank_)->load();
   void *srcAddr = reduceScatterNodeStartingAddress.at(rank_);
+
+  //shadow run
+  PHUB_CHECK(memcmp(srcAddr, output_buffer_, copyBytes) == 0);
   std::memcpy(output_buffer_.data() + block_start_.at(rank_), srcAddr, copyBytes);
 
   this->FindBestSplitsFromHistograms(this->is_feature_used_, true);
