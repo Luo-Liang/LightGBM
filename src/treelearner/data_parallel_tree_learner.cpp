@@ -156,7 +156,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
 
   int PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE = 2 * SplitInfo::Size(this->config_->max_cat_threshold);
   pHubBackingBufferForAllReduceSplitInfo.resize(PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE);
-  pHubAllReduceSplitInfo = createPHubInstance(pHubBackingBufferForAllReduceSplitInfo.data(), 1, num_machines_, rank_, 2, PHubDataType::CUSTOM, PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE / 2);
+  pHubAllReduceSplitInfo = createPHubInstance(pHubBackingBufferForAllReduceSplitInfo.data(), 2, num_machines_, rank_, 2, PHubDataType::CUSTOM, PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE / 2);
   pHubAllReduceSplitInfo->SetReductionFunction(&PHubReducerForSyncUpGlobalBestSplit);
 
 }
@@ -366,7 +366,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
     //check block length agrees
     PLinkKey start = reduceScatterNodeStartingKey.at(i);
     CHECK(block_len_.at(i) == reduceScatterNodeByteCounters.at(i)->load());
-    int count = (int)ceil(1.0 * reduceScatterNodeByteCounters.at(i)->load() / pHubChunkSize);
+    int count = (int)ceil(1.0 * reduceScatterNodeByteCounters.at(i)->load() / sizeof(HistogramBinEntry) / pHubChunkSize );
     for (PLinkKey key = start; key < start + count; key++)
     {
       //plink key supports basic arith,
