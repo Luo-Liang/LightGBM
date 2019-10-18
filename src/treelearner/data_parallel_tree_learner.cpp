@@ -159,7 +159,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
     //sets phubcoreoffset to continue right after max core.
     auto reqCore = atoi(getenv("PHubMaximumCore")); //this is for reduce scatter
     reqCore += 1;                                   //this is for T3 allreduce
-    setenv("PHubCoreOffset", std::string(reqCore).c_str(), 1);
+    setenv("PHubCoreOffset", std::to_string(reqCore).c_str(), 1);
   }
   int PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE = 2 * SplitInfo::Size(this->config_->max_cat_threshold);
   pHubBackingBufferForAllReduceSplitInfo.resize(PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE);
@@ -368,7 +368,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
   }
 
   // Reduce scatter for histogram
-  
+
   //Network::ReduceScatter(input_buffer_.data(), reduce_scatter_size_, sizeof(HistogramBinEntry), block_start_.data(),
   //                       block_len_.data(), output_buffer_.data(), static_cast<comm_size_t>(output_buffer_.size()), &HistogramBinEntry::SumReducer);
   
