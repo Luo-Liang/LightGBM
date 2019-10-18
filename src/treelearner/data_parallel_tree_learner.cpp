@@ -146,8 +146,10 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
   const int PHUB_ALL_REDUCE_T3_KEY0_SIZE = sizeof(std::tuple<data_size_t, double, double>);
   pHubBackingBufferForAllReduceT3.resize(PHUB_ALL_REDUCE_T3_KEY0_SIZE);
   setenv("PLINK_SCHEDULE_TYPE", "allreduce", 1);
+  int reduceScatterCores = 1;
   if (getenv("PHubMaximumCore") != nullptr)
   {
+    reduceScatterCores = atoi(getenv("PHubMaximumCore"));
     //sets phubcoreoffset to continue right after max core.
     setenv("PHubCoreOffset", getenv("PHubMaximumCore"), 1);
     setenv("PHubMaximumCore", "1", 1);
@@ -159,8 +161,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
   if (getenv("PHubMaximumCore") != nullptr)
   {
     //sets phubcoreoffset to continue right after max core.
-    auto reqCore = atoi(getenv("PHubMaximumCore")); //this is for reduce scatter
-    reqCore += 1;                                   //this is for T3 allreduce
+    auto reqCore = reduceScatterCores + 1; //this is for reduce scatter
     setenv("PHubCoreOffset", std::to_string(reqCore).c_str(), 1);
   }
   int PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE = 2 * SplitInfo::Size(this->config_->max_cat_threshold);
