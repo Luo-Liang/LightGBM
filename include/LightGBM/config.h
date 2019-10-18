@@ -106,7 +106,7 @@ public:
       CollectivePreference.resize(2);
       CollectivePreference[CollectiveType::ALLGATHER] = getPreferredColletiveByType(CollectiveType::ALLGATHER);
       CollectivePreference[CollectiveType::REDUCESCATTER] = getPreferredColletiveByType(CollectiveType::REDUCESCATTER);
-      Log::Info("ALLGATHER: %d, REDUCE SCATTER: %d", CollectivePreference[CollectiveType::ALLGATHER], CollectivePreference[CollectiveType::REDUCESCATTER]);
+      //Log::Info("ALLGATHER: %d, REDUCE SCATTER: %d", CollectivePreference[CollectiveType::ALLGATHER], CollectivePreference[CollectiveType::REDUCESCATTER]);
     }
     return CollectivePreference[type];
   }
