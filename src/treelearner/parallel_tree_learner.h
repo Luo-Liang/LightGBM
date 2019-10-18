@@ -240,6 +240,8 @@ inline void SyncUpGlobalBestSplit(char *input_buffer_, char *output_buffer_, Spl
   int size = SplitInfo::Size(max_cat_threshold);
   smaller_best_split->CopyTo(input_buffer_);
   larger_best_split->CopyTo(input_buffer_ + size);
+  
+  /*
   Network::Allreduce(input_buffer_, size * 2, size, output_buffer_,
                      [](const char *src, char *dst, int size, comm_size_t len) {
                        comm_size_t used_size = 0;
@@ -257,10 +259,11 @@ inline void SyncUpGlobalBestSplit(char *input_buffer_, char *output_buffer_, Spl
                          used_size += size;
                        }
                      });
+  */
 
   //enable shadow plink reduction inplace.
   //two sizes at most in reduction
-  if (pHub != nullptr)
+  //if (pHub != nullptr)
   {
     CHECK(size * 2 == pHub->keySizes.at(0));
     //make sure PHub is set up correctly
