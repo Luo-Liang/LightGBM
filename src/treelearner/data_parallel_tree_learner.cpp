@@ -154,11 +154,17 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
   pHubAllReduceT3 = createPHubInstance(pHubBackingBufferForAllReduceT3.data(), 1, num_machines_, rank_, 1, PHubDataType::CUSTOM, PHUB_ALL_REDUCE_T3_KEY0_SIZE);
   pHubAllReduceT3->SetReductionFunction(&PHubTuple3Reducer);
 
+  if (getenv("PHubMaximumCore") != nullptr)
+  {
+    //sets phubcoreoffset to continue right after max core.
+    auto reqCore = atoi(getenv("PHubMaximumCore")); //this is for reduce scatter
+    reqCore += 1;                                   //this is for T3 allreduce
+    setenv("PHubCoreOffset", std::string(reqCore).c_str(), 1);
+  }
   int PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE = 2 * SplitInfo::Size(this->config_->max_cat_threshold);
   pHubBackingBufferForAllReduceSplitInfo.resize(PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE);
   pHubAllReduceSplitInfo = createPHubInstance(pHubBackingBufferForAllReduceSplitInfo.data(), 2, num_machines_, rank_, 2, PHubDataType::CUSTOM, PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE / 2);
   pHubAllReduceSplitInfo->SetReductionFunction(&PHubReducerForSyncUpGlobalBestSplit);
-
 }
 
 template <typename TREELEARNER_T>
@@ -364,8 +370,8 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
   {
     //check block length agrees
     PLinkKey start = reduceScatterNodeStartingKey.at(i);
-    PHUB_CHECK(block_len_.at(i) == reduceScatterNodeByteCounters.at(i)->load()) << " block_len_ is " << block_len_.at(i) << " vs. reduce scatter bytes " <<reduceScatterNodeByteCounters.at(i)->load();
-    int count = (int)ceil(1.0 * reduceScatterNodeByteCounters.at(i)->load() / sizeof(HistogramBinEntry) / pHubChunkSize );
+    PHUB_CHECK(block_len_.at(i) == reduceScatterNodeByteCounters.at(i)->load()) << " block_len_ is " << block_len_.at(i) << " vs. reduce scatter bytes " << reduceScatterNodeByteCounters.at(i)->load();
+    int count = (int)ceil(1.0 * reduceScatterNodeByteCounters.at(i)->load() / sizeof(HistogramBinEntry) / pHubChunkSize);
     for (PLinkKey key = start; key < start + count; key++)
     {
       //plink key supports basic arith,
