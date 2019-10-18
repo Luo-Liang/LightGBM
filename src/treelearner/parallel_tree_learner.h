@@ -240,7 +240,6 @@ inline void SyncUpGlobalBestSplit(char *input_buffer_, char *output_buffer_, Spl
   smaller_best_split->CopyTo(input_buffer_);
   larger_best_split->CopyTo(input_buffer_ + size);
 
-  /*
   Network::Allreduce(input_buffer_, size * 2, size, output_buffer_,
                      [](const char *src, char *dst, int size, comm_size_t len) {
                        comm_size_t used_size = 0;
@@ -258,7 +257,7 @@ inline void SyncUpGlobalBestSplit(char *input_buffer_, char *output_buffer_, Spl
                          used_size += size;
                        }
                      });
-  */
+
   // copy back
   smaller_best_split->CopyFrom(output_buffer_);
   larger_best_split->CopyFrom(output_buffer_ + size);
