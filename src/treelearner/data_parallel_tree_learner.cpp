@@ -121,7 +121,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
   {
     reduceScatterNodeByteCounters.push_back(std::make_unique<std::atomic<int>>(0));
     reduceScatterNodeStartingAddress.at(i) = pHubBackingBufferForReduceScatter.data() + i * buffer_size;
-    reduceScatterNodeStartingKey.at(i) = i * numbin;
+    reduceScatterNodeStartingKey.at(i) = i * (numbin / chunkSize);
   }
   //void getChunkedInformationGivenBuffer(
   //void *ptr,
