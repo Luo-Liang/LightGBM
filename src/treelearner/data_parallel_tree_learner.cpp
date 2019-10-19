@@ -66,7 +66,7 @@ void PHubTuple3Reducer(char *src, char *dst)
 {
   std::tuple<data_size_t, double, double> *src_t = (std::tuple<data_size_t, double, double> *)(src);
   std::tuple<data_size_t, double, double> *dst_t = (std::tuple<data_size_t, double, double> *)(dst);
-  fprintf(stderr, "[PHUB] %d, %f, %f + %d, %f, %f = %d, %f, %f\n", std::get<0>(*dst_t), std::get<1>(*dst_t), std::get<2>(*dst_t), std::get<0>(*src_t), std::get<1>(*src_t), std::get<2>(*src_t));
+  fprintf(stderr, "[PHUB] %d, %f, %f + %d, %f, %f\n", std::get<0>(*dst_t), std::get<1>(*dst_t), std::get<2>(*dst_t), std::get<0>(*src_t), std::get<1>(*src_t), std::get<2>(*src_t));
   std::get<0>(*dst_t) += std::get<0>(*src_t);
   std::get<1>(*dst_t) += std::get<1>(*src_t);
   std::get<2>(*dst_t) += std::get<2>(*src_t);
@@ -321,7 +321,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
     {
       p1 = reinterpret_cast<const std::tuple<data_size_t, double, double> *>(src);
       p2 = reinterpret_cast<std::tuple<data_size_t, double, double> *>(dst);
-      fprintf(stderr, "[HD] %d, %f, %f + %d, %f, %f = %d, %f, %f\n", std::get<0>(*p2), std::get<1>(*p2), std::get<2>(*p2), std::get<0>(*p1), std::get<1>(*p1), std::get<2>(*p1));
+      fprintf(stderr, "[HD] %d, %f, %f + %d, %f, %f\n", std::get<0>(*p2), std::get<1>(*p2), std::get<2>(*p2), std::get<0>(*p1), std::get<1>(*p1), std::get<2>(*p1));
 
       std::get<0>(*p2) = std::get<0>(*p2) + std::get<0>(*p1);
       std::get<1>(*p2) = std::get<1>(*p2) + std::get<1>(*p1);
