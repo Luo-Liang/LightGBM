@@ -70,7 +70,7 @@ void PHubTuple3Reducer(char *src, char *dst)
   std::get<0>(*dst_t) += std::get<0>(*src_t);
   std::get<1>(*dst_t) += std::get<1>(*src_t);
   std::get<2>(*dst_t) += std::get<2>(*src_t);
-  fprintf(stderr, "   [PHUB:%d] currsum = %d, %f, %f\n", Network::Rank(), std::get<0>(*dst_t), std::get<1>(*dst_t), std::get<2>(*dst_t));
+  fprintf(stderr, "   [PHUB:%d] currsum = %d, %f, %f\n", Network::rank(), std::get<0>(*dst_t), std::get<1>(*dst_t), std::get<2>(*dst_t));
 }
 
 void PHubHistogramBinEntrySumReducer(char *src, char *dst)
