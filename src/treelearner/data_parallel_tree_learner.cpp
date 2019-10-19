@@ -305,6 +305,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
   std::tuple<data_size_t, double, double> data(this->smaller_leaf_splits_->num_data_in_leaf(),
                                                this->smaller_leaf_splits_->sum_gradients(), this->smaller_leaf_splits_->sum_hessians());
   int size = sizeof(data);
+  auto data1 = data;
 
   std::memcpy(input_buffer_.data(), &data, size);
   // global sumup reduce
@@ -332,10 +333,9 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
   //shadow operation. use this for correctness test.
   //change source direction.
 
-  auto data1 = data;
 
-  pHubAllReduceT3->ApplicationSuppliedAddrs.at(0) = &data;
-  pHubAllReduceT3->ApplicationSuppliedOutputAddrs.at(0) = &data;
+  pHubAllReduceT3->ApplicationSuppliedAddrs.at(0) = &data1;
+  pHubAllReduceT3->ApplicationSuppliedOutputAddrs.at(0) = &data1;
   COMPILER_BARRIER();
   //fine, no race, because syncrhonziation points introduced by work queues.
   pHubAllReduceT3->Reduce();
