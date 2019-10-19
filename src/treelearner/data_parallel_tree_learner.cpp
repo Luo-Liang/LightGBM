@@ -66,11 +66,11 @@ void PHubTuple3Reducer(char *src, char *dst)
 {
   std::tuple<data_size_t, double, double> *src_t = (std::tuple<data_size_t, double, double> *)(src);
   std::tuple<data_size_t, double, double> *dst_t = (std::tuple<data_size_t, double, double> *)(dst);
-  fprintf(stderr, "[PHUB:%d] %d, %f, %f + %d, %f, %f\n", Network::rank(), std::get<0>(*dst_t), std::get<1>(*dst_t), std::get<2>(*dst_t), std::get<0>(*src_t), std::get<1>(*src_t), std::get<2>(*src_t));
+  //fprintf(stderr, "[PHUB:%d] %d, %f, %f + %d, %f, %f\n", Network::rank(), std::get<0>(*dst_t), std::get<1>(*dst_t), std::get<2>(*dst_t), std::get<0>(*src_t), std::get<1>(*src_t), std::get<2>(*src_t));
   std::get<0>(*dst_t) += std::get<0>(*src_t);
   std::get<1>(*dst_t) += std::get<1>(*src_t);
   std::get<2>(*dst_t) += std::get<2>(*src_t);
-  fprintf(stderr, "   [PHUB:%d] currsum = %d, %f, %f\n", Network::rank(), std::get<0>(*dst_t), std::get<1>(*dst_t), std::get<2>(*dst_t));
+  //fprintf(stderr, "   [PHUB:%d] currsum = %d, %f, %f\n", Network::rank(), std::get<0>(*dst_t), std::get<1>(*dst_t), std::get<2>(*dst_t));
 }
 
 void PHubHistogramBinEntrySumReducer(char *src, char *dst)
@@ -306,49 +306,44 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
   // sync global data sumup info
   std::tuple<data_size_t, double, double> data(this->smaller_leaf_splits_->num_data_in_leaf(),
                                                this->smaller_leaf_splits_->sum_gradients(), this->smaller_leaf_splits_->sum_hessians());
-  int size = sizeof(data);
-  auto data1 = data;
+  //  int size = sizeof(data);
+  // auto data1 = data;
+  // std::memcpy(input_buffer_.data(), &data, size);
+  // Network::Allreduce(input_buffer_.data(), size, sizeof(std::tuple<data_size_t, double, double>), output_buffer_.data(), [](const char *src, char *dst, int type_size, comm_size_t len) {
+  //   comm_size_t used_size = 0;
+  //   const std::tuple<data_size_t, double, double> *p1;
+  //   std::tuple<data_size_t, double, double> *p2;
+  //   while (used_size < len)
+  //   {
+  //     p1 = reinterpret_cast<const std::tuple<data_size_t, double, double> *>(src);
+  //     p2 = reinterpret_cast<std::tuple<data_size_t, double, double> *>(dst);
+  //     fprintf(stderr, "[STD:%d.%d] %d, %f, %f + %d, %f, %f\n", Network::rank(), used_size, std::get<0>(*p2), std::get<1>(*p2), std::get<2>(*p2), std::get<0>(*p1), std::get<1>(*p1), std::get<2>(*p1));
 
-  std::memcpy(input_buffer_.data(), &data, size);
-  // global sumup reduce
+  //     std::get<0>(*p2) = std::get<0>(*p2) + std::get<0>(*p1);
+  //     std::get<1>(*p2) = std::get<1>(*p2) + std::get<1>(*p1);
+  //     std::get<2>(*p2) = std::get<2>(*p2) + std::get<2>(*p1);
 
-  //this is a 20B allreduce. push everything to node 0, key 0.
-  Network::Allreduce(input_buffer_.data(), size, sizeof(std::tuple<data_size_t, double, double>), output_buffer_.data(), [](const char *src, char *dst, int type_size, comm_size_t len) {
-    comm_size_t used_size = 0;
-    const std::tuple<data_size_t, double, double> *p1;
-    std::tuple<data_size_t, double, double> *p2;
-    while (used_size < len)
-    {
-      p1 = reinterpret_cast<const std::tuple<data_size_t, double, double> *>(src);
-      p2 = reinterpret_cast<std::tuple<data_size_t, double, double> *>(dst);
-      fprintf(stderr, "[STD:%d.%d] %d, %f, %f + %d, %f, %f\n", Network::rank(), used_size, std::get<0>(*p2), std::get<1>(*p2), std::get<2>(*p2), std::get<0>(*p1), std::get<1>(*p1), std::get<2>(*p1));
+  //     fprintf(stderr, "   [STD:%d.%d] currsum = %d, %f, %f\n", Network::rank(), used_size, std::get<0>(*p2), std::get<1>(*p2), std::get<2>(*p2));
 
-      std::get<0>(*p2) = std::get<0>(*p2) + std::get<0>(*p1);
-      std::get<1>(*p2) = std::get<1>(*p2) + std::get<1>(*p1);
-      std::get<2>(*p2) = std::get<2>(*p2) + std::get<2>(*p1);
-
-      fprintf(stderr, "   [STD:%d.%d] currsum = %d, %f, %f\n", Network::rank(), used_size, std::get<0>(*p2), std::get<1>(*p2), std::get<2>(*p2));
-
-      src += type_size;
-      dst += type_size;
-      used_size += type_size;
-    }
-  });
-  // copy back
-  std::memcpy(reinterpret_cast<void *>(&data), output_buffer_.data(), size);
+  //     src += type_size;
+  //     dst += type_size;
+  //     used_size += type_size;
+  //   }
+  // });
+  // std::memcpy(reinterpret_cast<void *>(&data), output_buffer_.data(), size);
 
   //shadow operation. use this for correctness test.
   //change source direction.
-
-  pHubAllReduceT3->ApplicationSuppliedAddrs.at(0) = &data1;
-  pHubAllReduceT3->ApplicationSuppliedOutputAddrs.at(0) = &data1;
+  pHubAllReduceT3->ApplicationSuppliedAddrs.at(0) = &data;       //&data1;
+  pHubAllReduceT3->ApplicationSuppliedOutputAddrs.at(0) = &data; //&data1;
   COMPILER_BARRIER();
   //fine, no race, because syncrhonziation points introduced by work queues.
   pHubAllReduceT3->Reduce();
 
-  PHUB_CHECK(std::get<0>(data1) == std::get<0>(data)) << std::get<0>(data1) << " vs " << std::get<0>(data);
-  PHUB_CHECK_VERY_CLOSE((double)std::get<1>(data1), (double)std::get<1>(data)) << std::get<1>(data1) << " vs " << std::get<1>(data);
-  PHUB_CHECK_VERY_CLOSE((double)std::get<2>(data1), (double)std::get<2>(data)) << std::get<2>(data1) << " vs " << std::get<2>(data);
+  //PHUB_CHECK(std::get<0>(data1) == std::get<0>(data)) << std::get<0>(data1) << " vs " << std::get<0>(data);
+  //PHUB_CHECK_VERY_CLOSE((double)std::get<1>(data1), (double)std::get<1>(data)) << std::get<1>(data1) << " vs " << std::get<1>(data);
+  //PHUB_CHECK_VERY_CLOSE((double)std::get<2>(data1), (double)std::get<2>(data)) << std::get<2>(data1) << " vs " << std::get<2>(data);
+
   // set global sumup info
   this->smaller_leaf_splits_->Init(std::get<1>(data), std::get<2>(data));
   // init global data count in leaf
