@@ -66,9 +66,11 @@ void PHubTuple3Reducer(char *src, char *dst)
 {
   std::tuple<data_size_t, double, double> *src_t = (std::tuple<data_size_t, double, double> *)(src);
   std::tuple<data_size_t, double, double> *dst_t = (std::tuple<data_size_t, double, double> *)(dst);
+  fprintf(stderr, "[PHUB] %d, %f, %f + %d, %f, %f = %d, %f, %f\n", std::get<0>(*dst_t), std::get<1>(*dst_t), std::get<2>(*dst_t), std::get<0>(*src_t), std::get<1>(*src_t), std::get<2>(*src_t));
   std::get<0>(*dst_t) += std::get<0>(*src_t);
   std::get<1>(*dst_t) += std::get<1>(*src_t);
   std::get<2>(*dst_t) += std::get<2>(*src_t);
+  fprintf(stderr, "   [PHUB] currsum = %d, %f, %f\n", std::get<0>(*dst_t), std::get<1>(*dst_t), std::get<2>(*dst_t));
 }
 
 void PHubHistogramBinEntrySumReducer(char *src, char *dst)
@@ -319,9 +321,14 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
     {
       p1 = reinterpret_cast<const std::tuple<data_size_t, double, double> *>(src);
       p2 = reinterpret_cast<std::tuple<data_size_t, double, double> *>(dst);
+      fprintf(stderr, "[HD] %d, %f, %f + %d, %f, %f = %d, %f, %f\n", std::get<0>(*p2), std::get<1>(*p2), std::get<2>(*p2), std::get<0>(*p1), std::get<1>(*p1), std::get<2>(*p1));
+
       std::get<0>(*p2) = std::get<0>(*p2) + std::get<0>(*p1);
       std::get<1>(*p2) = std::get<1>(*p2) + std::get<1>(*p1);
       std::get<2>(*p2) = std::get<2>(*p2) + std::get<2>(*p1);
+
+      fprintf(stderr, "   [HD] currsum = %d, %f, %f\n", std::get<0>(*p2), std::get<1>(*p2), std::get<2>(*p2));
+
       src += type_size;
       dst += type_size;
       used_size += type_size;
@@ -339,7 +346,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
   //fine, no race, because syncrhonziation points introduced by work queues.
   pHubAllReduceT3->Reduce();
 
-  PHUB_CHECK(data1 == data) << "data1.0 .1 .2 = " << std::get<0>(data1) << " " << std::get<1>(data1) << " " << std::get<2>(data1) << " data.0 .1 .2 = "  << std::get<0>(data) << " " << std::get<1>(data) << " " << std::get<2>(data) ;
+  PHUB_CHECK(data1 == data) << "data1.0 .1 .2 = " << std::get<0>(data1) << " " << std::get<1>(data1) << " " << std::get<2>(data1) << " data.0 .1 .2 = " << std::get<0>(data) << " " << std::get<1>(data) << " " << std::get<2>(data);
 
   // set global sumup info
   this->smaller_leaf_splits_->Init(std::get<1>(data), std::get<2>(data));
