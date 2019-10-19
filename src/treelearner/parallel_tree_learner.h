@@ -240,27 +240,24 @@ inline void SyncUpGlobalBestSplit(char *input_buffer_, char *output_buffer_, Spl
   smaller_best_split->CopyTo(input_buffer_);
   larger_best_split->CopyTo(input_buffer_ + size);
 
-  Network::Allreduce(input_buffer_, size * 2, size, output_buffer_,
-                     [](const char *src, char *dst, int size, comm_size_t len) {
-                       comm_size_t used_size = 0;
-                       LightSplitInfo p1, p2;
-                       while (used_size < len)
-                       {
-                         p1.CopyFrom(src);
-                         p2.CopyFrom(dst);
-                         if (p1 > p2)
-                         {
-                           std::memcpy(dst, src, size);
-                         }
-                         src += size;
-                         dst += size;
-                         used_size += size;
-                       }
-                     });
+  // Network::Allreduce(input_buffer_, size * 2, size, output_buffer_,
+  //                    [](const char *src, char *dst, int size, comm_size_t len) {
+  //                      comm_size_t used_size = 0;
+  //                      LightSplitInfo p1, p2;
+  //                      while (used_size < len)
+  //                      {
+  //                        p1.CopyFrom(src);
+  //                        p2.CopyFrom(dst);
+  //                        if (p1 > p2)
+  //                        {
+  //                          std::memcpy(dst, src, size);
+  //                        }
+  //                        src += size;
+  //                        dst += size;
+  //                        used_size += size;
+  //                      }
+  //                    });
 
-  // copy back
-  smaller_best_split->CopyFrom(output_buffer_);
-  larger_best_split->CopyFrom(output_buffer_ + size);
   //enable shadow plink reduction inplace.
   //two sizes at most in reduction
   //if (pHub != nullptr)
@@ -275,8 +272,12 @@ inline void SyncUpGlobalBestSplit(char *input_buffer_, char *output_buffer_, Spl
     pHub->Reduce();
     //shadow run
     //i need bit by bit equal.
-    PHUB_CHECK(memcmp(pHub->ApplicationSuppliedOutputAddrs.at(0), output_buffer_, 2 * size) == 0);
+    //PHUB_CHECK(memcmp(pHub->ApplicationSuppliedOutputAddrs.at(0), output_buffer_, 2 * size) == 0);
   }
+
+  // copy back
+  smaller_best_split->CopyFrom(output_buffer_);
+  larger_best_split->CopyFrom(output_buffer_ + size);
 }
 
 } // namespace LightGBM
