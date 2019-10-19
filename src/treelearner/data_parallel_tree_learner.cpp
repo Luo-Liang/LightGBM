@@ -161,7 +161,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
   {
     //sets phubcoreoffset to continue right after max core.
     auto reqCore = reduceScatterCores + 1; //this is for reduce scatter
-    reqCore += 2;                                   //this is for T3 allreduce
+    reqCore += 2;                          //this is for T3 allreduce
     setenv("PHubCoreOffset", std::to_string(reqCore).c_str(), 1);
   }
   int PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE = 2 * SplitInfo::Size(this->config_->max_cat_threshold);
@@ -400,7 +400,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
   void *srcAddr = reduceScatterNodeStartingAddress.at(rank_);
 
   //shadow run
-  PHUB_CHECK(memcmp(srcAddr, output_buffer_.data(), copyBytes) == 0);
+  PHUB_CHECK(memcmp(srcAddr, output_buffer_.data() + block_start_.at(rank_), copyBytes) == 0);
   std::memcpy(output_buffer_.data() + block_start_.at(rank_), srcAddr, copyBytes);
 
   this->FindBestSplitsFromHistograms(this->is_feature_used_, true);
