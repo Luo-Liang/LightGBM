@@ -160,8 +160,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
   if (getenv("PHubMaximumCore") != nullptr)
   {
     //sets phubcoreoffset to continue right after max core.
-    auto reqCore = reduceScatterCores + 1; //this is for reduce scatter
-    reqCore += 2;                          //this is for T3 allreduce
+    auto reqCore = reduceScatterCores + 1; //this is for reduce scatter, plus the t3 phub
     setenv("PHubCoreOffset", std::to_string(reqCore).c_str(), 1);
   }
   int PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE = 2 * SplitInfo::Size(this->config_->max_cat_threshold);
