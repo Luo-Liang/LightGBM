@@ -66,11 +66,11 @@ void PHubTuple3Reducer(char *src, char *dst)
 {
   std::tuple<data_size_t, double, double> *src_t = (std::tuple<data_size_t, double, double> *)(src);
   std::tuple<data_size_t, double, double> *dst_t = (std::tuple<data_size_t, double, double> *)(dst);
-  fprintf(stderr, "[PHUB] %d, %f, %f + %d, %f, %f\n", std::get<0>(*dst_t), std::get<1>(*dst_t), std::get<2>(*dst_t), std::get<0>(*src_t), std::get<1>(*src_t), std::get<2>(*src_t));
+  fprintf(stderr, "[PHUB:%d] %d, %f, %f + %d, %f, %f\n", Network::rank(), std::get<0>(*dst_t), std::get<1>(*dst_t), std::get<2>(*dst_t), std::get<0>(*src_t), std::get<1>(*src_t), std::get<2>(*src_t));
   std::get<0>(*dst_t) += std::get<0>(*src_t);
   std::get<1>(*dst_t) += std::get<1>(*src_t);
   std::get<2>(*dst_t) += std::get<2>(*src_t);
-  fprintf(stderr, "   [PHUB] currsum = %d, %f, %f\n", std::get<0>(*dst_t), std::get<1>(*dst_t), std::get<2>(*dst_t));
+  fprintf(stderr, "   [PHUB:%d] currsum = %d, %f, %f\n", Network::Rank(), std::get<0>(*dst_t), std::get<1>(*dst_t), std::get<2>(*dst_t));
 }
 
 void PHubHistogramBinEntrySumReducer(char *src, char *dst)
@@ -321,13 +321,13 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
     {
       p1 = reinterpret_cast<const std::tuple<data_size_t, double, double> *>(src);
       p2 = reinterpret_cast<std::tuple<data_size_t, double, double> *>(dst);
-      fprintf(stderr, "[HD] %d, %f, %f + %d, %f, %f\n", std::get<0>(*p2), std::get<1>(*p2), std::get<2>(*p2), std::get<0>(*p1), std::get<1>(*p1), std::get<2>(*p1));
+      fprintf(stderr, "[STD:%d.%d] %d, %f, %f + %d, %f, %f\n", Network::rank(), used_size, std::get<0>(*p2), std::get<1>(*p2), std::get<2>(*p2), std::get<0>(*p1), std::get<1>(*p1), std::get<2>(*p1));
 
       std::get<0>(*p2) = std::get<0>(*p2) + std::get<0>(*p1);
       std::get<1>(*p2) = std::get<1>(*p2) + std::get<1>(*p1);
       std::get<2>(*p2) = std::get<2>(*p2) + std::get<2>(*p1);
 
-      fprintf(stderr, "   [HD] currsum = %d, %f, %f\n", std::get<0>(*p2), std::get<1>(*p2), std::get<2>(*p2));
+      fprintf(stderr, "   [STD:%d.%d] currsum = %d, %f, %f\n", Network::rank(), used_size, std::get<0>(*p2), std::get<1>(*p2), std::get<2>(*p2));
 
       src += type_size;
       dst += type_size;
