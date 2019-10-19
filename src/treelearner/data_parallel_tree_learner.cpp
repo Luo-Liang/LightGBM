@@ -347,8 +347,8 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
   pHubAllReduceT3->Reduce();
 
   PHUB_CHECK(std::get<0>(data1) == std::get<0>(data)) << std::get<0>(data1) << " vs " << std::get<0>(data);
-  PHUB_CHECK_CLOSE(std::get<1>(data1), std::get<1>(data)) << std::get<1>(data1) << " vs " << std::get<1>(data);
-  PHUB_CHECK_CLOSE(std::get<2>(data1), std::get<2>(data)) << std::get<2>(data1) << " vs " << std::get<2>(data);
+  PHUB_CHECK_VERY_CLOSE((double)std::get<1>(data1), (double)std::get<1>(data)) << std::get<1>(data1) << " vs " << std::get<1>(data);
+  PHUB_CHECK_VERY_CLOSE((double)std::get<2>(data1), (double)std::get<2>(data)) << std::get<2>(data1) << " vs " << std::get<2>(data);
   // set global sumup info
   this->smaller_leaf_splits_->Init(std::get<1>(data), std::get<2>(data));
   // init global data count in leaf
