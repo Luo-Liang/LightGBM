@@ -401,8 +401,21 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
   void *srcAddr = reduceScatterNodeStartingAddress.at(rank_);
 
   //shadow run
-  fprintf(stderr, "copy bytes = %d\n", copyBytes);
-  PHUB_CHECK(memcmp(srcAddr, output_buffer_.data() + block_start_.at(rank_), copyBytes) == 0);
+  //fprintf(stderr, "copy bytes = %d\n", copyBytes);
+  //PHUB_CHECK(memcmp(srcAddr, output_buffer_.data() + block_start_.at(rank_), copyBytes) == 0);
+
+  PHUB_CHECK(copyBytes % sizeof(HistogramBinEntry));
+  PHUB_CHECK(copyBytes == block_len_.at(rank_));
+  for (size_t i = 0; i < copyBytes / sizeof(HistogramBinEntry); i++)
+  {
+    var phubE = (HistogramBinEntry *)(srcAddr + sizeof(HistogramBinEntry) * i);
+    var origE = (HistogramBinEntry *)(output_buffer_.data() + block_start_.at(rank_) + sizeof(HistogramBinEntry) * i);
+
+    PHUB_CHECK(phubE->cnt == origE->cnt) << "orig.cnt = " << origE->cnt << " vs " << phubE->cnt;
+    PHUB_CHECK_VERY_CLOSE(phubE->sum_gradients, origE->sum_gradients) << "orig.cnt = " << origE->sum_gradients << " vs " << phubE->sum_gradients;
+    PHUB_CHECK_VERY_CLOSE(phubE->sum_hessians, origE->sum_hessians) << "orig.cnt = " << origE->sum_hessians << " vs " << phubE->sum_hessians;
+  }
+
   std::memcpy(output_buffer_.data() + block_start_.at(rank_), srcAddr, copyBytes);
   this->FindBestSplitsFromHistograms(this->is_feature_used_, true);
   for (int i = 0; i < num_machines_; i++)
