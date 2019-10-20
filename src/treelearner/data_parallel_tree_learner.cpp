@@ -169,7 +169,8 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
   pHubBackingBufferForAllReduceSplitInfo.resize(PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE);
   pHubAllReduceSplitInfo = createPHubInstance(pHubBackingBufferForAllReduceSplitInfo.data(), 2, num_machines_, rank_, 2, PHubDataType::CUSTOM, PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE / 2);
   pHubAllReduceSplitInfo->SetReductionFunction(&PHubReducerForSyncUpGlobalBestSplit);
-  pHubAllReduceSplitInfo->ApplicationSuppliedOutputAddrs.at(0) = output_buffer_.data(); //pHubBackingBufferForAllReduceSplitInfo.data();
+  //both write to input_buffer.
+  pHubAllReduceSplitInfo->ApplicationSuppliedOutputAddrs.at(0) = input_buffer_.data(); //pHubBackingBufferForAllReduceSplitInfo.data();
   pHubAllReduceSplitInfo->ApplicationSuppliedAddrs.at(0) = input_buffer_.data();
 }
 
