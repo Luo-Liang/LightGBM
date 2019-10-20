@@ -404,7 +404,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
   //fprintf(stderr, "copy bytes = %d\n", copyBytes);
   //PHUB_CHECK(memcmp(srcAddr, output_buffer_.data() + block_start_.at(rank_), copyBytes) == 0);
 
-  PHUB_CHECK(copyBytes % sizeof(HistogramBinEntry)) << copyBytes << " vs " << block_len_.at(rank_);
+  PHUB_CHECK(copyBytes % sizeof(HistogramBinEntry) == 0) << copyBytes << " vs " << block_len_.at(rank_);
   PHUB_CHECK(copyBytes == block_len_.at(rank_));
   for (size_t i = 0; i < copyBytes / sizeof(HistogramBinEntry); i++)
   {
