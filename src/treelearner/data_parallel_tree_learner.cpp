@@ -75,12 +75,22 @@ void PHubTuple3Reducer(char *src, char *dst)
 
 void PHubHistogramBinEntrySumReducer(char *src, char *dst)
 {
+  static std::atomic<int> idx = {0};
   HistogramBinEntry *source = (HistogramBinEntry *)src;
   HistogramBinEntry *dest = (HistogramBinEntry *)dst;
+  if (idx == 0)
+  {
+    fprintf(stderr, "[%d] src->cnt = %d, src->sum_g = %f, src->sum_h = %f, dst->cnt = %d, dst->sum_g = %f, dst->sum_h = %f\n", source->cnt, source->sum_gradients, source->sum_hessians, dest->cnt, dest->sum_gradients, dest->sum_hessians);
+  }
   //it will be called repeatedly as more data is streamed to PHub
   dest->cnt += source->cnt;
   dest->sum_gradients += source->sum_gradients;
   dest->sum_hessians += source->sum_hessians;
+  if (idx == 0)
+  {
+    fprintf(stderr, "[%d]         dst->cnt = %d, dst->sum_g = %f, dst->sum_h = %f\n", dest->cnt, dest->sum_gradients, dest->sum_hessians);
+  }
+  idx++;
 }
 
 std::string getKeyOwnershipString(int numMachines, int keysPerMachine)
@@ -411,10 +421,10 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
     var phubE = (HistogramBinEntry *)(srcAddr + sizeof(HistogramBinEntry) * i);
     var origE = (HistogramBinEntry *)(output_buffer_.data() + block_start_.at(rank_) + sizeof(HistogramBinEntry) * i);
 
-    PHUB_CHECK(phubE->cnt == origE->cnt) << "idx " << i << " orig.cnt = " << origE->cnt << " vs " << phubE->cnt;
-    PHUB_CHECK_VERY_CLOSE(phubE->sum_gradients, origE->sum_gradients) << "idx " << i 
+    PHUB_CHECK(phubE->cnt == origE->cnt) << rank_ << "idx " << i << " orig.cnt = " << origE->cnt << " vs " << phubE->cnt;
+    PHUB_CHECK_VERY_CLOSE(phubE->sum_gradients, origE->sum_gradients) << rank_ << "idx " << i
                                                                       << " orig.cnt = " << origE->sum_gradients << " vs " << phubE->sum_gradients;
-    PHUB_CHECK_VERY_CLOSE(phubE->sum_hessians, origE->sum_hessians) << " idx " << i 
+    PHUB_CHECK_VERY_CLOSE(phubE->sum_hessians, origE->sum_hessians) << rank_ << " idx " << i
                                                                     << " orig.cnt = " << origE->sum_hessians << " vs " << phubE->sum_hessians;
   }
 
