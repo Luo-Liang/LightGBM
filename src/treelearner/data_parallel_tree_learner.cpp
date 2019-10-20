@@ -75,22 +75,22 @@ void PHubTuple3Reducer(char *src, char *dst)
 
 void PHubHistogramBinEntrySumReducer(char *src, char *dst)
 {
-  static std::atomic<int> idx = {0};
+  //static std::atomic<int> idx = {0};
   HistogramBinEntry *source = (HistogramBinEntry *)src;
   HistogramBinEntry *dest = (HistogramBinEntry *)dst;
-  if (idx == 0)
+  //if (idx == 0)
   {
-    fprintf(stderr, "[%d] src->cnt = %d, src->sum_g = %f, src->sum_h = %f, dst->cnt = %d, dst->sum_g = %f, dst->sum_h = %f\n", Network::rank(),  source->cnt, source->sum_gradients, source->sum_hessians, dest->cnt, dest->sum_gradients, dest->sum_hessians);
+    fprintf(stderr, "PHUB:[%d] src->cnt = %d, src->sum_g = %f, src->sum_h = %f, dst->cnt = %d, dst->sum_g = %f, dst->sum_h = %f\n", Network::rank(),  source->cnt, source->sum_gradients, source->sum_hessians, dest->cnt, dest->sum_gradients, dest->sum_hessians);
   }
   //it will be called repeatedly as more data is streamed to PHub
   dest->cnt += source->cnt;
   dest->sum_gradients += source->sum_gradients;
   dest->sum_hessians += source->sum_hessians;
-  if (idx == 0)
+  //if (idx == 0)
   {
-    fprintf(stderr, "[%d]         dst->cnt = %d, dst->sum_g = %f, dst->sum_h = %f\n", Network::rank(), dest->cnt, dest->sum_gradients, dest->sum_hessians);
+    fprintf(stderr, "PHUB:[%d]         dst->cnt = %d, dst->sum_g = %f, dst->sum_h = %f\n", Network::rank(), dest->cnt, dest->sum_gradients, dest->sum_hessians);
   }
-  idx++;
+  //idx++;
 }
 
 std::string getKeyOwnershipString(int numMachines, int keysPerMachine)
@@ -148,8 +148,8 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
   PHUB_CHECK(numbin % chunkSize == 0);
   int reduceScatterPerMachineKeyCount = numbin;
   int reduceScatterTotalKeyCount = reduceScatterPerMachineKeyCount * num_machines_;
-  std::string reduceScatterSupplement = getKeyOwnershipString(num_machines_, reduceScatterPerMachineKeyCount);
-  //std::shared_ptr<PHub> createPHubInstance(void *ptr, size_t count, int size, int rank, int instanceId, PHubDataType dataType = PHubDataType::FLOAT, int elementWidth = sizeof(float), std::string scheduleSupplementaryData = "");
+  //here, getKeyOwnershipString is speaking PHub key, which is a collection of bins.
+  std::string reduceScatterSupplement = getKeyOwnershipString(num_machines_, reduceScatterPerMachineKeyCount / chunkSize);
   setenv("PLINK_SCHEDULE_TYPE", "reducescatter", 1);
   PHUB_CHECK(pHubBackingBufferForReduceScatter.size() == reduceScatterTotalKeyCount * sizeof(HistogramBinEntry));
   pHubReduceScatter = createPHubInstance(pHubBackingBufferForReduceScatter.data(), reduceScatterTotalKeyCount, num_machines_, rank_, 0, PHubDataType::CUSTOM, sizeof(HistogramBinEntry), reduceScatterSupplement);
