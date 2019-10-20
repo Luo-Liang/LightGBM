@@ -394,7 +394,6 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
       //plink key supports basic arith,
       tasks.push_back(key);
     }
-    *(reduceScatterNodeByteCounters.at(i)) = 0; //clear it. this func gets called many times in each iter.
   }
   pHubReduceScatter->Reduce(tasks);
   //now copy back. simple
@@ -404,8 +403,11 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
   //shadow run
   PHUB_CHECK(memcmp(srcAddr, output_buffer_.data() + block_start_.at(rank_), copyBytes) == 0);
   std::memcpy(output_buffer_.data() + block_start_.at(rank_), srcAddr, copyBytes);
-
   this->FindBestSplitsFromHistograms(this->is_feature_used_, true);
+  for (int i = 0; i < num_machines_; i++)
+  {
+    *reduceScatterNodeByteCounters.at(i) = 0;
+  }
 }
 
 template <typename TREELEARNER_T>
