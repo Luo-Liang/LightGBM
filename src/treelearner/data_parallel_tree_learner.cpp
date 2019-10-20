@@ -401,6 +401,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
   void *srcAddr = reduceScatterNodeStartingAddress.at(rank_);
 
   //shadow run
+  fprint(stderr, "copy bytes = %d\n", copyBytes);
   PHUB_CHECK(memcmp(srcAddr, output_buffer_.data() + block_start_.at(rank_), copyBytes) == 0);
   std::memcpy(output_buffer_.data() + block_start_.at(rank_), srcAddr, copyBytes);
   this->FindBestSplitsFromHistograms(this->is_feature_used_, true);
