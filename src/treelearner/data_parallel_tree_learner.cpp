@@ -80,7 +80,7 @@ void PHubHistogramBinEntrySumReducer(char *src, char *dst)
   HistogramBinEntry *dest = (HistogramBinEntry *)dst;
   if (idx == 0)
   {
-    fprintf(stderr, "[%d] src->cnt = %d, src->sum_g = %f, src->sum_h = %f, dst->cnt = %d, dst->sum_g = %f, dst->sum_h = %f\n", source->cnt, source->sum_gradients, source->sum_hessians, dest->cnt, dest->sum_gradients, dest->sum_hessians);
+    fprintf(stderr, "[%d] src->cnt = %d, src->sum_g = %f, src->sum_h = %f, dst->cnt = %d, dst->sum_g = %f, dst->sum_h = %f\n", Network::rank(),  source->cnt, source->sum_gradients, source->sum_hessians, dest->cnt, dest->sum_gradients, dest->sum_hessians);
   }
   //it will be called repeatedly as more data is streamed to PHub
   dest->cnt += source->cnt;
@@ -88,7 +88,7 @@ void PHubHistogramBinEntrySumReducer(char *src, char *dst)
   dest->sum_hessians += source->sum_hessians;
   if (idx == 0)
   {
-    fprintf(stderr, "[%d]         dst->cnt = %d, dst->sum_g = %f, dst->sum_h = %f\n", dest->cnt, dest->sum_gradients, dest->sum_hessians);
+    fprintf(stderr, "[%d]         dst->cnt = %d, dst->sum_g = %f, dst->sum_h = %f\n", Network::rank(), dest->cnt, dest->sum_gradients, dest->sum_hessians);
   }
   idx++;
 }
