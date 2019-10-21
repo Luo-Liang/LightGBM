@@ -168,7 +168,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
     setenv("PHubCoreOffset", getenv("PHubMaximumCore"), 1);
     setenv("PHubMaximumCore", "1", 1);
   }
-  setenv("PHubChunkElementSize", 1, 1);
+  setenv("PHubChunkElementSize", "1", 1);
   pHubAllReduceT3 = createPHubInstance(pHubBackingBufferForAllReduceT3.data(), 1, num_machines_, rank_, 1, PHubDataType::CUSTOM, PHUB_ALL_REDUCE_T3_KEY0_SIZE);
   pHubAllReduceT3->SetReductionFunction(&PHubTuple3Reducer);
   PHUB_CHECK(pHubAllReduceT3->keySizes.size() == 1&& pHubAllReduceT3->keySizes.at(0) == pHubBackingBufferForAllReduceT3.size());
@@ -181,7 +181,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
   }
   int PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE = 2 * SplitInfo::Size(this->config_->max_cat_threshold);
   pHubBackingBufferForAllReduceSplitInfo.resize(PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE);
-  setenv("PHubChunkElementSize", 2, 1);
+  setenv("PHubChunkElementSize", "2", 1);
   pHubAllReduceSplitInfo = createPHubInstance(pHubBackingBufferForAllReduceSplitInfo.data(), 2, num_machines_, rank_, 2, PHubDataType::CUSTOM, PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE / 2);
   PHUB_CHECK(pHubAllReduceSplitInfo->keySizes.size() == 1&& pHubAllReduceSplitInfo->keySizes.at(0) == pHubBackingBufferForAllReduceSplitInfo.size());
 
