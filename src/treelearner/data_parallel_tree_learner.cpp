@@ -80,7 +80,7 @@ void PHubHistogramBinEntrySumReducer(char *src, char *dst)
   HistogramBinEntry *dest = (HistogramBinEntry *)dst;
   //if (idx == 0)
   {
-    fprintf(stderr, "PHUB:[%d] src->cnt = %d, src->sum_g = %f, src->sum_h = %f, dst->cnt = %d, dst->sum_g = %f, dst->sum_h = %f\n", Network::rank(),  source->cnt, source->sum_gradients, source->sum_hessians, dest->cnt, dest->sum_gradients, dest->sum_hessians);
+    fprintf(stderr, "PHUB:[%d] src->cnt = %d, src->sum_g = %f, src->sum_h = %f, dst->cnt = %d, dst->sum_g = %f, dst->sum_h = %f\n", Network::rank(), source->cnt, source->sum_gradients, source->sum_hessians, dest->cnt, dest->sum_gradients, dest->sum_hessians);
   }
   //it will be called repeatedly as more data is streamed to PHub
   dest->cnt += source->cnt;
@@ -121,6 +121,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
   auto chunkSize = atoi(pHubGetMandatoryEnvironmemtVariable("PHubChunkElementSize").c_str());
   pHubChunkSize = chunkSize;
   size_t numbin = RoundUp(this->train_data_->NumTotalBin(), chunkSize);
+  fprintf(stderr, "[%d] numbin = %d, adjusted = %d\n", rank_, this->train_data_->NumTotalBin(), numbin);
   size_t buffer_size = numbin * sizeof(HistogramBinEntry);
   reduceScatterPerNodeBufferSize = buffer_size;
   auto total_buffer_size = buffer_size * num_machines_;
@@ -153,6 +154,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
   setenv("PLINK_SCHEDULE_TYPE", "reducescatter", 1);
   PHUB_CHECK(pHubBackingBufferForReduceScatter.size() == reduceScatterTotalKeyCount * sizeof(HistogramBinEntry));
   pHubReduceScatter = createPHubInstance(pHubBackingBufferForReduceScatter.data(), reduceScatterTotalKeyCount, num_machines_, rank_, 0, PHubDataType::CUSTOM, sizeof(HistogramBinEntry), reduceScatterSupplement);
+  PHUB_CHECK(pHubReduceScatter->keySizes.size() == num_machines_ * numbin / chunkSize);
   pHubReduceScatter->SetReductionFunction(&PHubHistogramBinEntrySumReducer);
 
   const int PHUB_ALL_REDUCE_T3_KEY0_SIZE = sizeof(std::tuple<data_size_t, double, double>);
@@ -382,7 +384,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
     auto nodeId = reduceScatterInnerFid2NodeMapping.at(feature_index);
     auto fid2Loc = reduceScatterNodeByteCounters.at(nodeId)->fetch_add(this->smaller_leaf_histogram_array_[feature_index].SizeOfHistgram(), std::memory_order_relaxed) + (char *)reduceScatterNodeStartingAddress.at(nodeId);
     std::memcpy(fid2Loc, this->smaller_leaf_histogram_array_[feature_index].RawData(), this->smaller_leaf_histogram_array_[feature_index].SizeOfHistgram());
-    //how do we know where to copy back? we cannot have PLink directly write to output buffer because plink operates at key level.
+    //how do we know where to copy back? we cannot have PLink  directly write to output buffer because plink operates at key level.
     //good news is the key assignment makes sure bins belong to the same node are continuous.
   }
 
