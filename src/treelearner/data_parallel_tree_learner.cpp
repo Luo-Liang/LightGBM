@@ -121,7 +121,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
   auto chunkSize = atoi(pHubGetMandatoryEnvironmemtVariable("PHubChunkElementSize").c_str());
   pHubChunkSize = chunkSize;
   size_t numbin = RoundUp(this->train_data_->NumTotalBin(), chunkSize);
-  fprintf(stderr, "[%d] numbin = %d, adjusted = %d\n", rank_, this->train_data_->NumTotalBin(), numbin);
+  fprintf(stderr, "[%d] numbin = %d, adjusted = %d. chunk = %d\n", rank_, this->train_data_->NumTotalBin(), numbin, chunkSize);
   size_t buffer_size = numbin * sizeof(HistogramBinEntry);
   reduceScatterPerNodeBufferSize = buffer_size;
   auto total_buffer_size = buffer_size * num_machines_;
@@ -395,6 +395,9 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
 
   //for PHub, we need to first figure out keys, and this is very simple
   std::vector<PLinkKey> tasks;
+
+
+  std::string str = CxxxxStringFormat("[%d] reduce scatter keys:\n", rank_);
   for (int i = 0; i < num_machines_; i++)
   {
     //check block length agrees
@@ -403,10 +406,13 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
     int count = (int)ceil(1.0 * reduceScatterNodeByteCounters.at(i)->load() / sizeof(HistogramBinEntry) / pHubChunkSize);
     for (PLinkKey key = start; key < start + count; key++)
     {
+      str += CxxxxStringFormat("[to:%d] %d, ", i, key);
       //plink key supports basic arith,
       tasks.push_back(key);
     }
+    str += "\n";
   }
+  fprintf(stderr, str.c_str());
   pHubReduceScatter->Reduce(tasks);
   //now copy back. simple
   int copyBytes = reduceScatterNodeByteCounters.at(rank_)->load();
