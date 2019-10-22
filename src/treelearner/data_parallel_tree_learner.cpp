@@ -418,9 +418,10 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
     PLinkKey start = reduceScatterNodeStartingKey.at(i);
     PHUB_CHECK(block_len_.at(i) == reduceScatterNodeByteCounters.at(i)->load()) << " block_len_ is " << block_len_.at(i) << " vs. reduce scatter bytes " << reduceScatterNodeByteCounters.at(i)->load();
     int count = (int)ceil(1.0 * reduceScatterNodeByteCounters.at(i)->load() / sizeof(HistogramBinEntry) / pHubChunkSize);
+    str += CxxxxStringFormat(", [to:%d] bytes = %d, number of bins = %d. keys = %d ", i, block_len_.at(i),  block_len_.at(i) / sizeof(HistogramBinEntry), count);
     for (PLinkKey key = start; key < start + count; key++)
     {
-      str += CxxxxStringFormat(", [to:%d] %d", i, key);
+      str += CxxxxStringFormat(",%d", i, key);
       //plink key supports basic arith,
       tasks.push_back(key);
     }
@@ -435,7 +436,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
     }
     //PHUB_CHECK(memcmp(input_buffer_.data() + block_start_.at(i), reduceScatterNodeStartingAddress.at(i), block_len_.at(i)) == 0) << " id: " << rank_ << " to " << num_machines_ << " send mismatch.";
   }
-  
+
   fprintf(stderr, "[%d] reduce scatter keys: %s\n", rank_, str.c_str());
 
   // Reduce scatter for histogram
