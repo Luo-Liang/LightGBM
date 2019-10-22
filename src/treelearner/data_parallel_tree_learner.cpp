@@ -459,10 +459,10 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
     var phubE = (HistogramBinEntry *)(srcAddr + sizeof(HistogramBinEntry) * i);
     var origE = (HistogramBinEntry *)(output_buffer_.data() + block_start_.at(rank_) + sizeof(HistogramBinEntry) * i);
 
-    PHUB_CHECK(phubE->cnt == origE->cnt) << rank_ << "idx " << i << " orig.cnt = " << origE->cnt << " vs " << phubE->cnt;
-    PHUB_CHECK_VERY_CLOSE(phubE->sum_gradients, origE->sum_gradients) << rank_ << "idx " << i
+    PHUB_CHECK(phubE->cnt == origE->cnt) << "rank: " << rank_ << " idx " << i << " orig.cnt = " << origE->cnt << " vs " << phubE->cnt << " dst:" << origE;
+    PHUB_CHECK_VERY_CLOSE(phubE->sum_gradients, origE->sum_gradients) << "rank: " << rank_ << "idx " << i
                                                                       << " orig.cnt = " << origE->sum_gradients << " vs " << phubE->sum_gradients;
-    PHUB_CHECK_VERY_CLOSE(phubE->sum_hessians, origE->sum_hessians) << rank_ << " idx " << i
+    PHUB_CHECK_VERY_CLOSE(phubE->sum_hessians, origE->sum_hessians) << "rank: " << rank_ << " idx " << i
                                                                     << " orig.cnt = " << origE->sum_hessians << " vs " << phubE->sum_hessians;
   }
 
