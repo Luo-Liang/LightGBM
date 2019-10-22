@@ -245,6 +245,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
     {
       int cur_min_machine = static_cast<int>(ArrayArgs<int>::ArgMin(num_bins_distributed));
       feature_distribution[cur_min_machine].push_back(inner_feature_index);
+      fprintf(stderr, "[%d] instatiate order: f_d[%d] . append(%d)\n", cur_min_machine, inner_feature_index);
       reduceScatterInnerFid2NodeMapping.at(inner_feature_index) = cur_min_machine;
       auto num_bin = this->train_data_->FeatureNumBin(inner_feature_index);
       if (this->train_data_->FeatureBinMapper(inner_feature_index)->GetDefaultBin() == 0)
