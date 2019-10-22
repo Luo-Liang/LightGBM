@@ -299,6 +299,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
     for (auto fid : feature_distribution[i])
     {
       buffer_write_start_pos_[fid] = bin_size;
+      fprintf(stderr, "[%d] fid = %d, target = %d, start offset = %d\n", rank_, fid, i, bin_size);
       auto num_bin = this->train_data_->FeatureNumBin(fid);
       if (this->train_data_->FeatureBinMapper(fid)->GetDefaultBin() == 0)
       {
