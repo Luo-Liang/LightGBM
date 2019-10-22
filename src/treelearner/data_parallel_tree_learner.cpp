@@ -410,19 +410,22 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
       tasks.push_back(key);
     }
 
-
-    
-    PHUB_CHECK(memcmp(input_buffer_.data() + block_start_.at(i), reduceScatterNodeStartingAddress.at(i), block_len_.at(i)) == 0) << " id: " << rank_ << " to " << num_machines_ << " send mismatch.";
-
+    for (int idx = 0; idx < block_len_.at(i) / sizeof(HistogramBinEntry); idx++)
+    {
+      var orig = (HistogramBinEntry *)(input_buffer_.data() + block_start_.at(i) + idx * sizeof(HistogramBinEntry));
+      var hub = (HistogramBinEntry *)(reduceScatterNodeStartingAddress.at(i) + idx * sizeof(HistogramBinEntry));
+      PHUB_CHECK(orig->cnt == hub->cnt) << " invalid count from id = " << rank_ << " idx = " << idx << " to id" << i << " " << orig->cnt << " vs " << hub->cnt;
+      PHUB_CHECK(orig->sum_gradients == hub->sum_gradients) << " invalid count from id = " << rank_ << " idx = " << idx << " to id" << i << " " << orig->sum_gradients << " vs " << hub->sum_gradients;
+      PHUB_CHECK(orig->sum_hessians == hub->sum_hessians) << " invalid count from id = " << rank_ << " idx = " << idx << " to id" << i << " " << orig->sum_hessians << " vs " << hub->sum_hessians;      
+    }
+    //PHUB_CHECK(memcmp(input_buffer_.data() + block_start_.at(i), reduceScatterNodeStartingAddress.at(i), block_len_.at(i)) == 0) << " id: " << rank_ << " to " << num_machines_ << " send mismatch.";
   }
 
-    // Reduce scatter for histogram
+  // Reduce scatter for histogram
 
   Network::ReduceScatter(input_buffer_.data(), reduce_scatter_size_, sizeof(HistogramBinEntry), block_start_.data(),
                          block_len_.data(), output_buffer_.data(), static_cast<comm_size_t>(output_buffer_.size()), &HistogramBinEntry::SumReducer);
 
-
-  
   //fprintf(stderr, str.c_str());
   pHubReduceScatter->Reduce(tasks);
   //now copy back. simple
@@ -432,7 +435,6 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
   //shadow run
   //fprintf(stderr, "copy bytes = %d\n", copyBytes);
   //PHUB_CHECK(memcmp(srcAddr, output_buffer_.data() + block_start_.at(rank_), copyBytes) == 0);
-
 
   PHUB_CHECK(copyBytes % sizeof(HistogramBinEntry) == 0) << copyBytes << " vs " << block_len_.at(rank_);
   PHUB_CHECK(copyBytes == block_len_.at(rank_));
