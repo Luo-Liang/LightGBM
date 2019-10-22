@@ -463,7 +463,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
   {
     //the weird semantic of reduce scatter in output_buffer, from the beginning.
     var phubE = (HistogramBinEntry *)(srcAddr + sizeof(HistogramBinEntry) * i);
-    var origE = (HistogramBinEntry *)(output_buffer_.data() + block_start_.at(rank_) + sizeof(HistogramBinEntry) * i);
+    var origE = (HistogramBinEntry *)(output_buffer_.data() + sizeof(HistogramBinEntry) * i);
 
     PHUB_CHECK(phubE->cnt == origE->cnt) << "rank: " << rank_ << " idx " << i << " orig.cnt = " << origE->cnt << " vs " << phubE->cnt << " dst:" << origE;
     PHUB_CHECK_VERY_CLOSE(phubE->sum_gradients, origE->sum_gradients) << "rank: " << rank_ << "idx " << i
