@@ -456,7 +456,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
 
   for (int i = 0; i < num_machines_; i++)
   {
-    fprintf(stderr, "[%d] check start = %p, len = %d\n", rank_, output_buffer_.data(), block_len_.at(i));
+    fprintf(stderr, "[%d] check start = %p, len = %d\n", rank_, output_buffer_.data() + block_start_.at(i), block_len_.at(i));
   }
 
   for (size_t i = 0; i < copyBytes / sizeof(HistogramBinEntry); i++)
