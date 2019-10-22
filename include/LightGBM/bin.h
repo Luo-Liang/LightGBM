@@ -8,6 +8,7 @@
 #include <LightGBM/meta.h>
 #include <LightGBM/utils/common.h>
 #include <LightGBM/utils/file_io.h>
+#include <LightGBM/network.h>
 
 #include <limits>
 #include <string>
