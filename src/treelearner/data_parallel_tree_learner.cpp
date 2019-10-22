@@ -393,11 +393,6 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
     //good news is the key assignment makes sure bins belong to the same node are continuous.
   }
 
-  // Reduce scatter for histogram
-
-  Network::ReduceScatter(input_buffer_.data(), reduce_scatter_size_, sizeof(HistogramBinEntry), block_start_.data(),
-                         block_len_.data(), output_buffer_.data(), static_cast<comm_size_t>(output_buffer_.size()), &HistogramBinEntry::SumReducer);
-
   //for PHub, we need to first figure out keys, and this is very simple
   std::vector<PLinkKey> tasks;
 
@@ -417,6 +412,11 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
 
     PHUB_CHECK(memcmp(input_buffer_.data(), reduceScatterNodeStartingAddress.at(i), block_len_.at(i)) == 0) << " id: " << rank_ << " to " << num_machines_ << " send mismatch.";
   }
+
+    // Reduce scatter for histogram
+
+  Network::ReduceScatter(input_buffer_.data(), reduce_scatter_size_, sizeof(HistogramBinEntry), block_start_.data(),
+                         block_len_.data(), output_buffer_.data(), static_cast<comm_size_t>(output_buffer_.size()), &HistogramBinEntry::SumReducer);
 
 
   
