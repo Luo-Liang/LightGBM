@@ -80,7 +80,7 @@ void PHubHistogramBinEntrySumReducer(char *src, char *dst)
   HistogramBinEntry *dest = (HistogramBinEntry *)dst;
   //if (idx == 0)
   {
-    fprintf(stderr, "PHUB:[%d] src->cnt = %d, src->sum_g = %f, src->sum_h = %f, dst->cnt = %d, dst->sum_g = %f, dst->sum_h = %f\n", Network::rank(), source->cnt, source->sum_gradients, source->sum_hessians, dest->cnt, dest->sum_gradients, dest->sum_hessians);
+    fprintf(stderr, "PHUB:[%d][dst = %p] src->cnt = %d, src->sum_g = %f, src->sum_h = %f, dst->cnt = %d, dst->sum_g = %f, dst->sum_h = %f\n", Network::rank(), dst, source->cnt, source->sum_gradients, source->sum_hessians, dest->cnt, dest->sum_gradients, dest->sum_hessians);
   }
   //it will be called repeatedly as more data is streamed to PHub
   dest->cnt += source->cnt;
@@ -88,7 +88,7 @@ void PHubHistogramBinEntrySumReducer(char *src, char *dst)
   dest->sum_hessians += source->sum_hessians;
   //if (idx == 0)
   {
-    fprintf(stderr, "PHUB:[%d]         dst->cnt = %d, dst->sum_g = %f, dst->sum_h = %f\n", Network::rank(), dest->cnt, dest->sum_gradients, dest->sum_hessians);
+    fprintf(stderr, "PHUB:[%d][dst = %p]         dst->cnt = %d, dst->sum_g = %f, dst->sum_h = %f\n", Network::rank(), dst, dest->cnt, dest->sum_gradients, dest->sum_hessians);
   }
   //idx++;
 }
@@ -171,7 +171,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
   setenv("PHubChunkElementSize", "1", 1);
   pHubAllReduceT3 = createPHubInstance(pHubBackingBufferForAllReduceT3.data(), 1, num_machines_, rank_, 1, PHubDataType::CUSTOM, PHUB_ALL_REDUCE_T3_KEY0_SIZE);
   pHubAllReduceT3->SetReductionFunction(&PHubTuple3Reducer);
-  PHUB_CHECK(pHubAllReduceT3->keySizes.size() == 1&& pHubAllReduceT3->keySizes.at(0) == pHubBackingBufferForAllReduceT3.size());
+  PHUB_CHECK(pHubAllReduceT3->keySizes.size() == 1 && pHubAllReduceT3->keySizes.at(0) == pHubBackingBufferForAllReduceT3.size());
 
   if (getenv("PHubMaximumCore") != nullptr)
   {
@@ -183,7 +183,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
   pHubBackingBufferForAllReduceSplitInfo.resize(PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE);
   setenv("PHubChunkElementSize", "2", 1);
   pHubAllReduceSplitInfo = createPHubInstance(pHubBackingBufferForAllReduceSplitInfo.data(), 2, num_machines_, rank_, 2, PHubDataType::CUSTOM, PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE / 2);
-  PHUB_CHECK(pHubAllReduceSplitInfo->keySizes.size() == 1&& pHubAllReduceSplitInfo->keySizes.at(0) == pHubBackingBufferForAllReduceSplitInfo.size());
+  PHUB_CHECK(pHubAllReduceSplitInfo->keySizes.size() == 1 && pHubAllReduceSplitInfo->keySizes.at(0) == pHubBackingBufferForAllReduceSplitInfo.size());
 
   pHubAllReduceSplitInfo->SetReductionFunction(&PHubReducerForSyncUpGlobalBestSplit);
   //both write to input_buffer.
