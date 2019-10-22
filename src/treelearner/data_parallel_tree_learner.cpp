@@ -375,6 +375,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
   // construct local histograms
   //I am skeptical whether OMP will help in this case.
   //#pragma omp parallel for schedule(static)
+  std::vector<std::vector<int>> node2Fids();
   for (int feature_index = 0; feature_index < this->num_features_; ++feature_index)
   {
     if ((!this->is_feature_used_.empty() && this->is_feature_used_[feature_index] == false))
@@ -391,7 +392,9 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
     std::memcpy(fid2Loc, this->smaller_leaf_histogram_array_[feature_index].RawData(), this->smaller_leaf_histogram_array_[feature_index].SizeOfHistgram());
     //how do we know where to copy back? we cannot have PLink  directly write to output buffer because plink operates at key level.
     //good news is the key assignment makes sure bins belong to the same node are continuous.
-    fprintf(stderr, "[%d] fid = %d, %p (orig) %p (phub), bytes = %d\n", rank_,  feature_index, input_buffer_.data() + buffer_write_start_pos_[feature_index], fid2Loc, this->smaller_leaf_histogram_array_[feature_index].SizeOfHistgram());
+    fprintf(stderr, "[%d] fid = %d, target = %d %p (orig) %p (phub), bytes = %d\n", rank_, feature_index, nodeId, input_buffer_.data() + buffer_write_start_pos_[feature_index], fid2Loc, this->smaller_leaf_histogram_array_[feature_index].SizeOfHistgram());
+
+    //unfortunately feature index's address is non-strictly-increasing.
   }
 
   //for PHub, we need to first figure out keys, and this is very simple
@@ -415,9 +418,9 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
     {
       var orig = (HistogramBinEntry *)(input_buffer_.data() + block_start_.at(i) + idx * sizeof(HistogramBinEntry));
       var hub = (HistogramBinEntry *)(reduceScatterNodeStartingAddress.at(i) + idx * sizeof(HistogramBinEntry));
-      PHUB_CHECK(orig->cnt == hub->cnt) << " invalid count from id = " << rank_ << " idx = " << idx << " to id" << i << " " << orig->cnt << " vs " << hub->cnt << " orig " << orig << " vs " << hub; 
+      PHUB_CHECK(orig->cnt == hub->cnt) << " invalid count from id = " << rank_ << " idx = " << idx << " to id" << i << " " << orig->cnt << " vs " << hub->cnt << " orig " << orig << " vs " << hub;
       PHUB_CHECK(orig->sum_gradients == hub->sum_gradients) << " invalid count from id = " << rank_ << " idx = " << idx << " to id" << i << " " << orig->sum_gradients << " vs " << hub->sum_gradients;
-      PHUB_CHECK(orig->sum_hessians == hub->sum_hessians) << " invalid count from id = " << rank_ << " idx = " << idx << " to id" << i << " " << orig->sum_hessians << " vs " << hub->sum_hessians;      
+      PHUB_CHECK(orig->sum_hessians == hub->sum_hessians) << " invalid count from id = " << rank_ << " idx = " << idx << " to id" << i << " " << orig->sum_hessians << " vs " << hub->sum_hessians;
     }
     //PHUB_CHECK(memcmp(input_buffer_.data() + block_start_.at(i), reduceScatterNodeStartingAddress.at(i), block_len_.at(i)) == 0) << " id: " << rank_ << " to " << num_machines_ << " send mismatch.";
   }
@@ -439,6 +442,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
 
   PHUB_CHECK(copyBytes % sizeof(HistogramBinEntry) == 0) << copyBytes << " vs " << block_len_.at(rank_);
   PHUB_CHECK(copyBytes == block_len_.at(rank_));
+
   for (size_t i = 0; i < copyBytes / sizeof(HistogramBinEntry); i++)
   {
     var phubE = (HistogramBinEntry *)(srcAddr + sizeof(HistogramBinEntry) * i);
