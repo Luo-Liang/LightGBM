@@ -80,7 +80,7 @@ void PHubHistogramBinEntrySumReducer(char *src, char *dst)
   HistogramBinEntry *dest = (HistogramBinEntry *)dst;
   //if (idx == 0)
   {
-    fprintf(stderr, "PHUB:[%d][dst = %p] src->cnt = %d, src->sum_g = %f, src->sum_h = %f, dst->cnt = %d, dst->sum_g = %f, dst->sum_h = %f\n", Network::rank(), dst, source->cnt, source->sum_gradients, source->sum_hessians, dest->cnt, dest->sum_gradients, dest->sum_hessians);
+    //fprintf(stderr, "PHUB:[%d][dst = %p] src->cnt = %d, src->sum_g = %f, src->sum_h = %f, dst->cnt = %d, dst->sum_g = %f, dst->sum_h = %f\n", Network::rank(), dst, source->cnt, source->sum_gradients, source->sum_hessians, dest->cnt, dest->sum_gradients, dest->sum_hessians);
   }
   //it will be called repeatedly as more data is streamed to PHub
   dest->cnt += source->cnt;
@@ -88,7 +88,7 @@ void PHubHistogramBinEntrySumReducer(char *src, char *dst)
   dest->sum_hessians += source->sum_hessians;
   //if (idx == 0)
   {
-    fprintf(stderr, "PHUB:[%d][dst = %p]         dst->cnt = %d, dst->sum_g = %f, dst->sum_h = %f\n", Network::rank(), dst, dest->cnt, dest->sum_gradients, dest->sum_hessians);
+    //fprintf(stderr, "PHUB:[%d][dst = %p]         dst->cnt = %d, dst->sum_g = %f, dst->sum_h = %f\n", Network::rank(), dst, dest->cnt, dest->sum_gradients, dest->sum_hessians);
   }
   //idx++;
 }
@@ -403,7 +403,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
     std::memcpy(fid2Loc, this->smaller_leaf_histogram_array_[feature_index].RawData(), this->smaller_leaf_histogram_array_[feature_index].SizeOfHistgram());
     //how do we know where to copy back? we cannot have PLink  directly write to output buffer because plink operates at key level.
     //good news is the key assignment makes sure bins belong to the same node are continuous.
-    fprintf(stderr, "[%d] fid = %d, target = %d %p (orig) %p (phub), bytes = %d\n", rank_, feature_index, nodeId, input_buffer_.data() + buffer_write_start_pos_[feature_index], fid2Loc, this->smaller_leaf_histogram_array_[feature_index].SizeOfHistgram());
+    //fprintf(stderr, "[%d] fid = %d, target = %d %p (orig) %p (phub), bytes = %d\n", rank_, feature_index, nodeId, input_buffer_.data() + buffer_write_start_pos_[feature_index], fid2Loc, this->smaller_leaf_histogram_array_[feature_index].SizeOfHistgram());
 
     //unfortunately feature index's address is non-strictly-increasing.
   }
@@ -453,11 +453,6 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
 
   PHUB_CHECK(copyBytes % sizeof(HistogramBinEntry) == 0) << copyBytes << " vs " << block_len_.at(rank_);
   PHUB_CHECK(copyBytes == block_len_.at(rank_));
-
-  for (int i = 0; i < num_machines_; i++)
-  {
-    fprintf(stderr, "[%d] check start = %p, len = %d\n", rank_, output_buffer_.data() + block_start_.at(i), block_len_.at(i));
-  }
 
   for (size_t i = 0; i < copyBytes / sizeof(HistogramBinEntry); i++)
   {

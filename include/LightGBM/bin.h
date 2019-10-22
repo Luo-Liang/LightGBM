@@ -57,15 +57,15 @@ public:
       p1 = reinterpret_cast<const HistogramBinEntry *>(src);
       p2 = reinterpret_cast<HistogramBinEntry *>(dst);
       // add
-      fprintf(stderr, "STD:[%d][dst = %p]. typesize = %d src->cnt = %d, src->sum_g = %f, src->sum_h = %f, dst->cnt = %d, dst->sum_g = %f, dst->sum_h = %f\n", Network::rank(), dst, type_size, p1->cnt, p1->sum_gradients, p1->sum_hessians, p2->cnt, p2->sum_gradients, p2->sum_hessians);
+      //fprintf(stderr, "STD:[%d][dst = %p]. typesize = %d src->cnt = %d, src->sum_g = %f, src->sum_h = %f, dst->cnt = %d, dst->sum_g = %f, dst->sum_h = %f\n", Network::rank(), dst, type_size, p1->cnt, p1->sum_gradients, p1->sum_hessians, p2->cnt, p2->sum_gradients, p2->sum_hessians);
 
       p2->cnt += p1->cnt;
       p2->sum_gradients += p1->sum_gradients;
       p2->sum_hessians += p1->sum_hessians;
 
-      {
-        fprintf(stderr, "STD:[%d][dst = %p]         dst->cnt = %d, dst->sum_g = %f, dst->sum_h = %f\n", Network::rank(), dst, p2->cnt, p2->sum_gradients, p2->sum_hessians);
-      }
+      // {
+      //   fprintf(stderr, "STD:[%d][dst = %p]         dst->cnt = %d, dst->sum_g = %f, dst->sum_h = %f\n", Network::rank(), dst, p2->cnt, p2->sum_gradients, p2->sum_hessians);
+      // }
       src += type_size;
       dst += type_size;
       used_size += type_size;
