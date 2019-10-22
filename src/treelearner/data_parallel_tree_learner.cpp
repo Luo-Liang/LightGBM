@@ -411,7 +411,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
   //for PHub, we need to first figure out keys, and this is very simple
   std::vector<PLinkKey> tasks;
 
-  //std::string str = CxxxxStringFormat("[%d] reduce scatter keys:\n", rank_);
+  std::string str = CxxxxStringFormat("[%d] reduce scatter keys:\n", rank_);
   for (int i = 0; i < num_machines_; i++)
   {
     //check block length agrees
@@ -420,10 +420,11 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
     int count = (int)ceil(1.0 * reduceScatterNodeByteCounters.at(i)->load() / sizeof(HistogramBinEntry) / pHubChunkSize);
     for (PLinkKey key = start; key < start + count; key++)
     {
-      //str += CxxxxStringFormat("[to:%d] %d, ", i, key);
+      str += CxxxxStringFormat("[to:%d] %d", i, key);
       //plink key supports basic arith,
       tasks.push_back(key);
     }
+    fprintf(stderr, "[%d] reduce scatter keys: %s\n", rank_, str.c_str());
 
     for (int idx = 0; idx < block_len_.at(i) / sizeof(HistogramBinEntry); idx++)
     {
@@ -453,6 +454,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
 
   PHUB_CHECK(copyBytes % sizeof(HistogramBinEntry) == 0) << copyBytes << " vs " << block_len_.at(rank_);
   PHUB_CHECK(copyBytes == block_len_.at(rank_));
+
 
   for (size_t i = 0; i < copyBytes / sizeof(HistogramBinEntry); i++)
   {
