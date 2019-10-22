@@ -411,7 +411,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
   //for PHub, we need to first figure out keys, and this is very simple
   std::vector<PLinkKey> tasks;
 
-  std::string str = CxxxxStringFormat("[%d] reduce scatter keys:\n", rank_);
+  std::string str = ""; //CxxxxStringFormat("[%d] reduce scatter keys:\n", rank_);
   for (int i = 0; i < num_machines_; i++)
   {
     //check block length agrees
