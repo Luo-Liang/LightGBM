@@ -461,6 +461,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
 
   for (size_t i = 0; i < copyBytes / sizeof(HistogramBinEntry); i++)
   {
+    //the weird semantic of reduce scatter in output_buffer, from the beginning.
     var phubE = (HistogramBinEntry *)(srcAddr + sizeof(HistogramBinEntry) * i);
     var origE = (HistogramBinEntry *)(output_buffer_.data() + block_start_.at(rank_) + sizeof(HistogramBinEntry) * i);
 
@@ -471,7 +472,8 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
                                                                     << " orig.cnt = " << origE->sum_hessians << " vs " << phubE->sum_hessians;
   }
 
-  std::memcpy(output_buffer_.data() + block_start_.at(rank_), srcAddr, copyBytes);
+  //reduce scatter puts this back to the beginning of output buffer :)
+  std::memcpy(output_buffer_.data(), srcAddr, copyBytes);
   this->FindBestSplitsFromHistograms(this->is_feature_used_, true);
   for (int i = 0; i < num_machines_; i++)
   {
