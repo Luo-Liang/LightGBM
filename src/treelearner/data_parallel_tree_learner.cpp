@@ -391,6 +391,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
     std::memcpy(fid2Loc, this->smaller_leaf_histogram_array_[feature_index].RawData(), this->smaller_leaf_histogram_array_[feature_index].SizeOfHistgram());
     //how do we know where to copy back? we cannot have PLink  directly write to output buffer because plink operates at key level.
     //good news is the key assignment makes sure bins belong to the same node are continuous.
+    fprintf(stderr, "[%d] fid = %d, %p (orig) %p (phub), bytes = %d\n", rank_,  feature_index, input_buffer_.data() + buffer_write_start_pos_[feature_index], fid2Loc, this->smaller_leaf_histogram_array_[feature_index].SizeOfHistgram());
   }
 
   //for PHub, we need to first figure out keys, and this is very simple
@@ -414,7 +415,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
     {
       var orig = (HistogramBinEntry *)(input_buffer_.data() + block_start_.at(i) + idx * sizeof(HistogramBinEntry));
       var hub = (HistogramBinEntry *)(reduceScatterNodeStartingAddress.at(i) + idx * sizeof(HistogramBinEntry));
-      PHUB_CHECK(orig->cnt == hub->cnt) << " invalid count from id = " << rank_ << " idx = " << idx << " to id" << i << " " << orig->cnt << " vs " << hub->cnt;
+      PHUB_CHECK(orig->cnt == hub->cnt) << " invalid count from id = " << rank_ << " idx = " << idx << " to id" << i << " " << orig->cnt << " vs " << hub->cnt << " orig " << orig << " vs " << hub; 
       PHUB_CHECK(orig->sum_gradients == hub->sum_gradients) << " invalid count from id = " << rank_ << " idx = " << idx << " to id" << i << " " << orig->sum_gradients << " vs " << hub->sum_gradients;
       PHUB_CHECK(orig->sum_hessians == hub->sum_hessians) << " invalid count from id = " << rank_ << " idx = " << idx << " to id" << i << " " << orig->sum_hessians << " vs " << hub->sum_hessians;      
     }
