@@ -16,22 +16,26 @@
 #include <unordered_map>
 #include <vector>
 
-namespace LightGBM {
+namespace LightGBM
+{
 
-enum BinType {
+enum BinType
+{
   NumericalBin,
   CategoricalBin
 };
 
-enum MissingType {
+enum MissingType
+{
   None,
   Zero,
   NaN
 };
 
 /*! \brief Store data for one histogram bin */
-struct HistogramBinEntry {
- public:
+struct HistogramBinEntry
+{
+public:
   /*! \brief Sum of gradients on this bin */
   double sum_gradients = 0.0f;
   /*! \brief Sum of hessians on this bin */
@@ -41,18 +45,26 @@ struct HistogramBinEntry {
   /*!
   * \brief Sum up (reducers) functions for histogram bin
   */
-  inline static void SumReducer(const char *src, char *dst, int type_size, comm_size_t len) {
+  inline static void SumReducer(const char *src, char *dst, int type_size, comm_size_t len)
+  {
     comm_size_t used_size = 0;
-    const HistogramBinEntry* p1;
-    HistogramBinEntry* p2;
-    while (used_size < len) {
+    const HistogramBinEntry *p1;
+    HistogramBinEntry *p2;
+    while (used_size < len)
+    {
       // convert
-      p1 = reinterpret_cast<const HistogramBinEntry*>(src);
-      p2 = reinterpret_cast<HistogramBinEntry*>(dst);
+      p1 = reinterpret_cast<const HistogramBinEntry *>(src);
+      p2 = reinterpret_cast<HistogramBinEntry *>(dst);
       // add
+      fprintf(stderr, "STD:[%d][dst = %p] src->cnt = %d, src->sum_g = %f, src->sum_h = %f, dst->cnt = %d, dst->sum_g = %f, dst->sum_h = %f\n", Network::rank(), dst, p1->cnt, p1->sum_gradients, p1->sum_hessians, p2->cnt, p2->sum_gradients, p2->sum_hessians);
+
       p2->cnt += p1->cnt;
       p2->sum_gradients += p1->sum_gradients;
       p2->sum_hessians += p1->sum_hessians;
+
+      {
+        fprintf(stderr, "STD:[%d][dst = %p]         dst->cnt = %d, dst->sum_g = %f, dst->sum_h = %f\n", Network::rank(), dst, p2->cnt, p2->sum_gradients, p2->sum_hessians);
+      }
       src += type_size;
       dst += type_size;
       used_size += type_size;
@@ -62,29 +74,40 @@ struct HistogramBinEntry {
 
 /*! \brief This class used to convert feature values into bin,
 *          and store some meta information for bin*/
-class BinMapper {
- public:
+class BinMapper
+{
+public:
   BinMapper();
-  BinMapper(const BinMapper& other);
-  explicit BinMapper(const void* memory);
+  BinMapper(const BinMapper &other);
+  explicit BinMapper(const void *memory);
   ~BinMapper();
 
-  bool CheckAlign(const BinMapper& other) const {
-    if (num_bin_ != other.num_bin_) {
+  bool CheckAlign(const BinMapper &other) const
+  {
+    if (num_bin_ != other.num_bin_)
+    {
       return false;
     }
-    if (missing_type_ != other.missing_type_) {
+    if (missing_type_ != other.missing_type_)
+    {
       return false;
     }
-    if (bin_type_ == BinType::NumericalBin) {
-      for (int i = 0; i < num_bin_; ++i) {
-        if (bin_upper_bound_[i] != other.bin_upper_bound_[i]) {
+    if (bin_type_ == BinType::NumericalBin)
+    {
+      for (int i = 0; i < num_bin_; ++i)
+      {
+        if (bin_upper_bound_[i] != other.bin_upper_bound_[i])
+        {
           return false;
         }
       }
-    } else {
-      for (int i = 0; i < num_bin_; i++) {
-        if (bin_2_categorical_[i] != other.bin_2_categorical_[i]) {
+    }
+    else
+    {
+      for (int i = 0; i < num_bin_; i++)
+      {
+        if (bin_2_categorical_[i] != other.bin_2_categorical_[i])
+        {
           return false;
         }
       }
@@ -104,16 +127,20 @@ class BinMapper {
   * \brief Save binary data to file
   * \param file File want to write
   */
-  void SaveBinaryToFile(const VirtualFileWriter* writer) const;
+  void SaveBinaryToFile(const VirtualFileWriter *writer) const;
   /*!
   * \brief Mapping bin into feature value
   * \param bin
   * \return Feature value of this bin
   */
-  inline double BinToValue(uint32_t bin) const {
-    if (bin_type_ == BinType::NumericalBin) {
+  inline double BinToValue(uint32_t bin) const
+  {
+    if (bin_type_ == BinType::NumericalBin)
+    {
       return bin_upper_bound_[bin];
-    } else {
+    }
+    else
+    {
       return bin_2_categorical_[bin];
     }
   }
@@ -132,7 +159,8 @@ class BinMapper {
   * \brief Get the default bin when value is 0
   * \return default bin
   */
-  inline uint32_t GetDefaultBin() const {
+  inline uint32_t GetDefaultBin() const
+  {
     return default_bin_;
   }
   /*!
@@ -147,7 +175,7 @@ class BinMapper {
   * \param use_missing True to enable missing value handle
   * \param zero_as_missing True to use zero as missing value
   */
-  void FindBin(double* values, int num_values, size_t total_sample_cnt, int max_bin, int min_data_in_bin, int min_split_data, BinType bin_type,
+  void FindBin(double *values, int num_values, size_t total_sample_cnt, int max_bin, int min_data_in_bin, int min_split_data, BinType bin_type,
                bool use_missing, bool zero_as_missing);
 
   /*!
@@ -161,13 +189,13 @@ class BinMapper {
   * \brief Seirilizing this object to buffer
   * \param buffer The destination
   */
-  void CopyTo(char* buffer) const;
+  void CopyTo(char *buffer) const;
 
   /*!
   * \brief Deserilizing this object from buffer
   * \param buffer The source
   */
-  void CopyFrom(const char* buffer);
+  void CopyFrom(const char *buffer);
 
   /*!
   * \brief Get bin types
@@ -177,10 +205,14 @@ class BinMapper {
   /*!
   * \brief Get bin info
   */
-  inline std::string bin_info() const {
-    if (bin_type_ == BinType::CategoricalBin) {
+  inline std::string bin_info() const
+  {
+    if (bin_type_ == BinType::CategoricalBin)
+    {
       return Common::Join(bin_2_categorical_, ":");
-    } else {
+    }
+    else
+    {
       std::stringstream str_buf;
       str_buf << std::setprecision(std::numeric_limits<double>::digits10 + 2);
       str_buf << '[' << min_val_ << ':' << max_val_ << ']';
@@ -188,7 +220,7 @@ class BinMapper {
     }
   }
 
- private:
+private:
   /*! \brief Number of bins */
   int num_bin_;
   MissingType missing_type_;
@@ -220,8 +252,9 @@ class BinMapper {
 *        However it brings additional cost: it need re-order the bins after every split, which will cost much for dense feature.
 *        So we only using ordered bin for sparse situations.
 */
-class OrderedBin {
- public:
+class OrderedBin
+{
+public:
   /*! \brief virtual destructor */
   virtual ~OrderedBin() {}
 
@@ -231,7 +264,7 @@ class OrderedBin {
            (this logic was build for bagging logic)
   * \param num_leaves Number of leaves on this iteration
   */
-  virtual void Init(const char* used_indices, data_size_t num_leaves) = 0;
+  virtual void Init(const char *used_indices, data_size_t num_leaves) = 0;
 
   /*!
   * \brief Construct histogram by using this bin
@@ -242,8 +275,8 @@ class OrderedBin {
   * \param hessians Hessians, Note:non-oredered by leaf
   * \param out Output Result
   */
-  virtual void ConstructHistogram(int leaf, const score_t* gradients,
-    const score_t* hessians, HistogramBinEntry* out) const = 0;
+  virtual void ConstructHistogram(int leaf, const score_t *gradients,
+                                  const score_t *hessians, HistogramBinEntry *out) const = 0;
 
   /*!
   * \brief Construct histogram by using this bin
@@ -253,7 +286,7 @@ class OrderedBin {
   * \param gradients Gradients, Note:non-oredered by leaf
   * \param out Output Result
   */
-  virtual void ConstructHistogram(int leaf, const score_t* gradients, HistogramBinEntry* out) const = 0;
+  virtual void ConstructHistogram(int leaf, const score_t *gradients, HistogramBinEntry *out) const = 0;
 
   /*!
   * \brief Split current bin, and perform re-order by leaf
@@ -262,14 +295,15 @@ class OrderedBin {
   * \param is_in_leaf is_in_leaf[i] == mark means the i-th data will be on left leaf after split
   * \param mark is_in_leaf[i] == mark means the i-th data will be on left leaf after split
   */
-  virtual void Split(int leaf, int right_leaf, const char* is_in_leaf, char mark) = 0;
+  virtual void Split(int leaf, int right_leaf, const char *is_in_leaf, char mark) = 0;
 
   virtual data_size_t NonZeroCount(int leaf) const = 0;
 };
 
 /*! \brief Iterator for one bin column */
-class BinIterator {
- public:
+class BinIterator
+{
+public:
   /*!
   * \brief Get bin data on specific row index
   * \param idx Index of this data
@@ -287,8 +321,9 @@ class BinIterator {
 *        Note that it may cause cache misses when construct histogram,
 *        but it doesn't need to re-order operation, So it will be faster than OrderedBin for dense feature
 */
-class Bin {
- public:
+class Bin
+{
+public:
   /*! \brief virtual destructor */
   virtual ~Bin() {}
   /*!
@@ -299,8 +334,7 @@ class Bin {
   */
   virtual void Push(int tid, data_size_t idx, uint32_t value) = 0;
 
-
-  virtual void CopySubset(const Bin* full_bin, const data_size_t* used_indices, data_size_t num_used_indices) = 0;
+  virtual void CopySubset(const Bin *full_bin, const data_size_t *used_indices, data_size_t num_used_indices) = 0;
   /*!
   * \brief Get bin iterator of this bin for specific feature
   * \param min_bin min_bin of current used feature
@@ -308,21 +342,21 @@ class Bin {
   * \param default_bin default bin if bin not in [min_bin, max_bin]
   * \return Iterator of this bin
   */
-  virtual BinIterator* GetIterator(uint32_t min_bin, uint32_t max_bin, uint32_t default_bin) const = 0;
+  virtual BinIterator *GetIterator(uint32_t min_bin, uint32_t max_bin, uint32_t default_bin) const = 0;
 
   /*!
   * \brief Save binary data to file
   * \param file File want to write
   */
-  virtual void SaveBinaryToFile(const VirtualFileWriter* writer) const = 0;
+  virtual void SaveBinaryToFile(const VirtualFileWriter *writer) const = 0;
 
   /*!
   * \brief Load from memory
   * \param memory
   * \param local_used_indices
   */
-  virtual void LoadFromMemory(const void* memory,
-    const std::vector<data_size_t>& local_used_indices) = 0;
+  virtual void LoadFromMemory(const void *memory,
+                              const std::vector<data_size_t> &local_used_indices) = 0;
 
   /*!
   * \brief Get sizes in byte of this object
@@ -348,13 +382,13 @@ class Bin {
   * \param out Output Result
   */
   virtual void ConstructHistogram(
-    const data_size_t* data_indices, data_size_t num_data,
-    const score_t* ordered_gradients, const score_t* ordered_hessians,
-    HistogramBinEntry* out) const = 0;
+      const data_size_t *data_indices, data_size_t num_data,
+      const score_t *ordered_gradients, const score_t *ordered_hessians,
+      HistogramBinEntry *out) const = 0;
 
   virtual void ConstructHistogram(data_size_t num_data,
-    const score_t* ordered_gradients, const score_t* ordered_hessians,
-    HistogramBinEntry* out) const = 0;
+                                  const score_t *ordered_gradients, const score_t *ordered_hessians,
+                                  HistogramBinEntry *out) const = 0;
 
   /*!
   * \brief Construct histogram of this feature,
@@ -368,11 +402,11 @@ class Bin {
   * \param ordered_gradients Pointer to gradients, the data_indices[i]-th data's gradient is ordered_gradients[i]
   * \param out Output Result
   */
-  virtual void ConstructHistogram(const data_size_t* data_indices, data_size_t num_data,
-                                  const score_t* ordered_gradients, HistogramBinEntry* out) const = 0;
+  virtual void ConstructHistogram(const data_size_t *data_indices, data_size_t num_data,
+                                  const score_t *ordered_gradients, HistogramBinEntry *out) const = 0;
 
   virtual void ConstructHistogram(data_size_t num_data,
-                                  const score_t* ordered_gradients, HistogramBinEntry* out) const = 0;
+                                  const score_t *ordered_gradients, HistogramBinEntry *out) const = 0;
 
   /*!
   * \brief Split data according to threshold, if bin <= threshold, will put into left(lte_indices), else put into right(gt_indices)
@@ -389,9 +423,9 @@ class Bin {
   * \return The number of less than or equal data.
   */
   virtual data_size_t Split(uint32_t min_bin, uint32_t max_bin,
-    uint32_t default_bin, MissingType missing_type, bool default_left, uint32_t threshold,
-    data_size_t* data_indices, data_size_t num_data,
-    data_size_t* lte_indices, data_size_t* gt_indices) const = 0;
+                            uint32_t default_bin, MissingType missing_type, bool default_left, uint32_t threshold,
+                            data_size_t *data_indices, data_size_t num_data,
+                            data_size_t *lte_indices, data_size_t *gt_indices) const = 0;
 
   /*!
   * \brief Split data according to threshold, if bin <= threshold, will put into left(lte_indices), else put into right(gt_indices)
@@ -407,15 +441,15 @@ class Bin {
   * \return The number of less than or equal data.
   */
   virtual data_size_t SplitCategorical(uint32_t min_bin, uint32_t max_bin,
-                            uint32_t default_bin, const uint32_t* threshold, int num_threshold,
-                            data_size_t* data_indices, data_size_t num_data,
-                            data_size_t* lte_indices, data_size_t* gt_indices) const = 0;
+                                       uint32_t default_bin, const uint32_t *threshold, int num_threshold,
+                                       data_size_t *data_indices, data_size_t num_data,
+                                       data_size_t *lte_indices, data_size_t *gt_indices) const = 0;
 
   /*!
   * \brief Create the ordered bin for this bin
   * \return Pointer to ordered bin
   */
-  virtual OrderedBin* CreateOrderedBin() const = 0;
+  virtual OrderedBin *CreateOrderedBin() const = 0;
 
   /*!
   * \brief After pushed all feature data, call this could have better refactor for bin data
@@ -433,8 +467,8 @@ class Bin {
   * \param default_bin Default bin for zeros value
   * \return The bin data object
   */
-  static Bin* CreateBin(data_size_t num_data, int num_bin,
-    double sparse_rate, bool is_enable_sparse, double sparse_threshold, bool* is_sparse);
+  static Bin *CreateBin(data_size_t num_data, int num_bin,
+                        double sparse_rate, bool is_enable_sparse, double sparse_threshold, bool *is_sparse);
 
   /*!
   * \brief Create object for bin data of one feature, used for dense feature
@@ -442,7 +476,7 @@ class Bin {
   * \param num_bin Number of bin
   * \return The bin data object
   */
-  static Bin* CreateDenseBin(data_size_t num_data, int num_bin);
+  static Bin *CreateDenseBin(data_size_t num_data, int num_bin);
 
   /*!
   * \brief Create object for bin data of one feature, used for sparse feature
@@ -450,52 +484,69 @@ class Bin {
   * \param num_bin Number of bin
   * \return The bin data object
   */
-  static Bin* CreateSparseBin(data_size_t num_data, int num_bin);
+  static Bin *CreateSparseBin(data_size_t num_data, int num_bin);
 
   /*!
   * \brief Deep copy the bin
   */
-  virtual Bin* Clone() = 0;
+  virtual Bin *Clone() = 0;
 };
 
-inline uint32_t BinMapper::ValueToBin(double value) const {
-  if (std::isnan(value)) {
-    if (missing_type_ == MissingType::NaN) {
+inline uint32_t BinMapper::ValueToBin(double value) const
+{
+  if (std::isnan(value))
+  {
+    if (missing_type_ == MissingType::NaN)
+    {
       return num_bin_ - 1;
-    } else {
+    }
+    else
+    {
       value = 0.0f;
     }
   }
-  if (bin_type_ == BinType::NumericalBin) {
+  if (bin_type_ == BinType::NumericalBin)
+  {
     // binary search to find bin
     int l = 0;
     int r = num_bin_ - 1;
-    if (missing_type_ == MissingType::NaN) {
+    if (missing_type_ == MissingType::NaN)
+    {
       r -= 1;
     }
-    while (l < r) {
+    while (l < r)
+    {
       int m = (r + l - 1) / 2;
-      if (value <= bin_upper_bound_[m]) {
+      if (value <= bin_upper_bound_[m])
+      {
         r = m;
-      } else {
+      }
+      else
+      {
         l = m + 1;
       }
     }
     return l;
-  } else {
+  }
+  else
+  {
     int int_value = static_cast<int>(value);
     // convert negative value to NaN bin
-    if (int_value < 0) {
+    if (int_value < 0)
+    {
       return num_bin_ - 1;
     }
-    if (categorical_2_bin_.count(int_value)) {
+    if (categorical_2_bin_.count(int_value))
+    {
       return categorical_2_bin_.at(int_value);
-    } else {
+    }
+    else
+    {
       return num_bin_ - 1;
     }
   }
 }
 
-}  // namespace LightGBM
+} // namespace LightGBM
 
-#endif   // LightGBM_BIN_H_
+#endif // LightGBM_BIN_H_
