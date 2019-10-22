@@ -90,6 +90,7 @@ private:
   std::vector<void *> reduceScatterNodeStartingAddress;
   std::vector<PLinkKey> reduceScatterNodeStartingKey;
 
+
   int reduceScatterPerNodeBufferSize = 0;
   int pHubReduceScatterPerNodeKeyCount = 0;
   int pHubAllReducePerNodeKeyCount = 0;

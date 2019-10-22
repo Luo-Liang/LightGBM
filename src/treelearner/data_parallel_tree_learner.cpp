@@ -245,7 +245,8 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
     {
       int cur_min_machine = static_cast<int>(ArrayArgs<int>::ArgMin(num_bins_distributed));
       feature_distribution[cur_min_machine].push_back(inner_feature_index);
-      fprintf(stderr, "[%d] instatiate order: f_d[%d] . append(%d)\n", cur_min_machine, inner_feature_index);
+      //unfortunately inneridx is orderless.
+      //fprintf(stderr, "[%d] instatiate order: f_d[%d] . append(%d)\n", cur_min_machine, inner_feature_index);
       reduceScatterInnerFid2NodeMapping.at(inner_feature_index) = cur_min_machine;
       auto num_bin = this->train_data_->FeatureNumBin(inner_feature_index);
       if (this->train_data_->FeatureBinMapper(inner_feature_index)->GetDefaultBin() == 0)
@@ -257,6 +258,14 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
     }
     is_feature_aggregated_[inner_feature_index] = false;
   }
+
+//lets sort. we need to do thisbefore any read to openmp with ordered loop. (ranged loop okay)
+#pragma omp parallel for schedule(static)
+  for (int mid = 0; mid < this->num_machines_; ++mid)
+  {
+    std::sort(feature_distribution[mid].begin(), feature_distribution[mid].end());
+  }
+
   // get local used feature
   for (auto fid : feature_distribution[rank_])
   {
@@ -300,7 +309,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
     for (auto fid : feature_distribution[i])
     {
       buffer_write_start_pos_[fid] = bin_size;
-      fprintf(stderr, "[%d] fid = %d, target = %d, start offset = %d\n", rank_, fid, i, bin_size);
+      //fprintf(stderr, "[%d] fid = %d, target = %d, start offset = %d\n", rank_, fid, i, bin_size);
       auto num_bin = this->train_data_->FeatureNumBin(fid);
       if (this->train_data_->FeatureBinMapper(fid)->GetDefaultBin() == 0)
       {
