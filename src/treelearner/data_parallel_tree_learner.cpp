@@ -415,7 +415,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
       tasks.push_back(key);
     }
 
-    PHUB_CHECK(memcmp(input_buffer_.data(), reduceScatterNodeStartingAddress.at(nodeId), block_len_.at(i)) == 0) << " id: " << rank_ << " to " << num_machines_ << " send mismatch.";
+    PHUB_CHECK(memcmp(input_buffer_.data(), reduceScatterNodeStartingAddress.at(i), block_len_.at(i)) == 0) << " id: " << rank_ << " to " << num_machines_ << " send mismatch.";
   }
 
 
