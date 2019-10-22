@@ -454,6 +454,11 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
   PHUB_CHECK(copyBytes % sizeof(HistogramBinEntry) == 0) << copyBytes << " vs " << block_len_.at(rank_);
   PHUB_CHECK(copyBytes == block_len_.at(rank_));
 
+  for (int i = 0; i < num_machines_; i++)
+  {
+    fprintf(stderr, "[%d] check start = %p, len = %d\n", rank_, output_buffer_.data(), block_len_.at(i));
+  }
+
   for (size_t i = 0; i < copyBytes / sizeof(HistogramBinEntry); i++)
   {
     var phubE = (HistogramBinEntry *)(srcAddr + sizeof(HistogramBinEntry) * i);
