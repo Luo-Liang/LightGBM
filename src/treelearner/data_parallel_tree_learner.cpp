@@ -421,7 +421,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
     str += CxxxxStringFormat(", [to:%d] bytes = %d, number of bins = %d. keys = %d ", i, block_len_.at(i),  block_len_.at(i) / sizeof(HistogramBinEntry), count);
     for (PLinkKey key = start; key < start + count; key++)
     {
-      str += CxxxxStringFormat(",%d", i, key);
+      str += CxxxxStringFormat(",%d", key);
       //plink key supports basic arith,
       tasks.push_back(key);
     }
