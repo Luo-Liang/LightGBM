@@ -421,12 +421,17 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
     PHUB_CHECK(block_len_.at(i) == reduceScatterNodeByteCounters.at(i)->load()) << " block_len_ is " << block_len_.at(i) << " vs. reduce scatter bytes " << reduceScatterNodeByteCounters.at(i)->load();
     int count = (int)ceil(1.0 * reduceScatterNodeByteCounters.at(i)->load() / sizeof(HistogramBinEntry) / pHubChunkSize);
     str += CxxxxStringFormat(", [to:%d] bytes = %d, number of bins = %d. keys = %d :: ", i, block_len_.at(i),  block_len_.at(i) / sizeof(HistogramBinEntry), count);
+
+    int phubbytes = 0;
     for (PLinkKey key = start; key < start + count; key++)
     {
       str += CxxxxStringFormat(",%d", key);
       //plink key supports basic arith,
       tasks.push_back(key);
+      phubbytes += pHubReduceScatter->keySizes.at(key);
     }
+
+    PHUB_CHECK(phubbytes >= block_len_.at(i));
 
     for (int idx = 0; idx < block_len_.at(i) / sizeof(HistogramBinEntry); idx++)
     {
