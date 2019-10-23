@@ -395,9 +395,9 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
       continue;
     // copy to buffer
 
-    std::memcpy(input_buffer_.data() + buffer_write_start_pos_[feature_index],
-                this->smaller_leaf_histogram_array_[feature_index].RawData(),
-                this->smaller_leaf_histogram_array_[feature_index].SizeOfHistgram());
+    // std::memcpy(input_buffer_.data() + buffer_write_start_pos_[feature_index],
+    //             this->smaller_leaf_histogram_array_[feature_index].RawData(),
+    //             this->smaller_leaf_histogram_array_[feature_index].SizeOfHistgram());
 
     //copy to plink
     auto nodeId = reduceScatterInnerFid2NodeMapping.at(feature_index);
@@ -422,25 +422,25 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
     int count = (int)ceil(1.0 * reduceScatterNodeByteCounters.at(i)->load() / sizeof(HistogramBinEntry) / pHubChunkSize);
     //str += CxxxxStringFormat(", [to:%d] bytes = %d, number of bins = %d. keys = %d :: ", i, block_len_.at(i),  block_len_.at(i) / sizeof(HistogramBinEntry), count);
 
-    int phubbytes = 0;
+    //int phubbytes = 0;
     for (PLinkKey key = start; key < start + count; key++)
     {
       //str += CxxxxStringFormat(",%d", key);
       //plink key supports basic arith,
       tasks.push_back(key);
-      phubbytes += pHubReduceScatter->keySizes.at(key);
+      //phubbytes += pHubReduceScatter->keySizes.at(key);
     }
 
-    PHUB_CHECK(phubbytes >= block_len_.at(i));
+    // PHUB_CHECK(phubbytes >= block_len_.at(i));
 
-    for (int idx = 0; idx < block_len_.at(i) / sizeof(HistogramBinEntry); idx++)
-    {
-      var orig = (HistogramBinEntry *)(input_buffer_.data() + block_start_.at(i) + idx * sizeof(HistogramBinEntry));
-      var hub = (HistogramBinEntry *)(reduceScatterNodeStartingAddress.at(i) + idx * sizeof(HistogramBinEntry));
-      PHUB_CHECK(orig->cnt == hub->cnt) << " invalid count from id = " << rank_ << " idx = " << idx << " to id" << i << " " << orig->cnt << " vs " << hub->cnt << " orig " << orig << " vs " << hub;
-      PHUB_CHECK(orig->sum_gradients == hub->sum_gradients) << " invalid count from id = " << rank_ << " idx = " << idx << " to id" << i << " " << orig->sum_gradients << " vs " << hub->sum_gradients;
-      PHUB_CHECK(orig->sum_hessians == hub->sum_hessians) << " invalid count from id = " << rank_ << " idx = " << idx << " to id" << i << " " << orig->sum_hessians << " vs " << hub->sum_hessians;
-    }
+    // for (int idx = 0; idx < block_len_.at(i) / sizeof(HistogramBinEntry); idx++)
+    // {
+    //   var orig = (HistogramBinEntry *)(input_buffer_.data() + block_start_.at(i) + idx * sizeof(HistogramBinEntry));
+    //   var hub = (HistogramBinEntry *)(reduceScatterNodeStartingAddress.at(i) + idx * sizeof(HistogramBinEntry));
+    //   PHUB_CHECK(orig->cnt == hub->cnt) << " invalid count from id = " << rank_ << " idx = " << idx << " to id" << i << " " << orig->cnt << " vs " << hub->cnt << " orig " << orig << " vs " << hub;
+    //   PHUB_CHECK(orig->sum_gradients == hub->sum_gradients) << " invalid count from id = " << rank_ << " idx = " << idx << " to id" << i << " " << orig->sum_gradients << " vs " << hub->sum_gradients;
+    //   PHUB_CHECK(orig->sum_hessians == hub->sum_hessians) << " invalid count from id = " << rank_ << " idx = " << idx << " to id" << i << " " << orig->sum_hessians << " vs " << hub->sum_hessians;
+    // }
     //PHUB_CHECK(memcmp(input_buffer_.data() + block_start_.at(i), reduceScatterNodeStartingAddress.at(i), block_len_.at(i)) == 0) << " id: " << rank_ << " to " << num_machines_ << " send mismatch.";
   }
 
