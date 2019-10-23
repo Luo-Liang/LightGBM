@@ -189,6 +189,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
   //both write to input_buffer.
   pHubAllReduceSplitInfo->ApplicationSuppliedOutputAddrs.at(0) = input_buffer_.data(); //pHubBackingBufferForAllReduceSplitInfo.data();
   pHubAllReduceSplitInfo->ApplicationSuppliedAddrs.at(0) = input_buffer_.data();
+
 }
 
 template <typename TREELEARNER_T>
@@ -290,6 +291,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
     reduce_scatter_size_ += block_len_[i];
   }
 
+  fprintf("[%d] reduce_scatter size = %d\n", rank_, reduce_scatter_size_);
   // Log::Info("[%d] reduce_scatter_size_ = %d", Network::rank(), reduce_scatter_size_);
   // for (size_t i = 0; i < block_len_.size(); i++)
   // {
@@ -418,7 +420,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
     PLinkKey start = reduceScatterNodeStartingKey.at(i);
     PHUB_CHECK(block_len_.at(i) == reduceScatterNodeByteCounters.at(i)->load()) << " block_len_ is " << block_len_.at(i) << " vs. reduce scatter bytes " << reduceScatterNodeByteCounters.at(i)->load();
     int count = (int)ceil(1.0 * reduceScatterNodeByteCounters.at(i)->load() / sizeof(HistogramBinEntry) / pHubChunkSize);
-    str += CxxxxStringFormat(", [to:%d] bytes = %d, number of bins = %d. keys = %d ", i, block_len_.at(i),  block_len_.at(i) / sizeof(HistogramBinEntry), count);
+    str += CxxxxStringFormat(", [to:%d] bytes = %d, number of bins = %d. keys = %d :: ", i, block_len_.at(i),  block_len_.at(i) / sizeof(HistogramBinEntry), count);
     for (PLinkKey key = start; key < start + count; key++)
     {
       str += CxxxxStringFormat(",%d", key);
