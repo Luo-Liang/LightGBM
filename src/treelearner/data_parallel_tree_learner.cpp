@@ -291,7 +291,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
     reduce_scatter_size_ += block_len_[i];
   }
 
-  fprintf("[%d] reduce_scatter size = %d\n", rank_, reduce_scatter_size_);
+  fprintf(stderr, "[%d] reduce_scatter size = %d\n", rank_, reduce_scatter_size_);
   // Log::Info("[%d] reduce_scatter_size_ = %d", Network::rank(), reduce_scatter_size_);
   // for (size_t i = 0; i < block_len_.size(); i++)
   // {
