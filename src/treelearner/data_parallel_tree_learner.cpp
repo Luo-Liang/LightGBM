@@ -463,7 +463,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
   std::vector<char> pHubShadowCopy(copyBytes);
   //copy to shadowCopt first
   int offset = 0;
-  for(auto fid : reduceScatterNodeFidOrder.at(rank_))
+  for (auto fid : reduceScatterNodeFidOrder.at(rank_))
   {
     std::memcpy(pHubShadowCopy.data() + buffer_read_start_pos_.at(fid), srcAddr + offset, this->smaller_leaf_histogram_array_[fid].SizeOfHistgram());
     offset += this->smaller_leaf_histogram_array_[fid].SizeOfHistgram();
@@ -483,7 +483,13 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
   }
 
   //reduce scatter puts this back to the beginning of output buffer :)
-  std::memcpy(output_buffer_.data(), srcAddr, copyBytes);
+  //std::memcpy(output_buffer_.data(), srcAddr, copyBytes);
+  int phubCopyOffset = 0;
+  for (auto fid : reduceScatterNodeFidOrder.at(rank_))
+  {
+    std::memcpy(output_buffer_.data() + buffer_read_start_pos_.at(fid), srcAddr + phubCopyOffset, this->smaller_leaf_histogram_array_[fid].SizeOfHistgram());
+    phubCopyOffset += this->smaller_leaf_histogram_array_[fid].SizeOfHistgram();
+  }
   this->FindBestSplitsFromHistograms(this->is_feature_used_, true);
   for (int i = 0; i < num_machines_; i++)
   {
