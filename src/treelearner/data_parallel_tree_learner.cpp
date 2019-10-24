@@ -465,7 +465,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
   int offset = 0;
   for (auto fid : reduceScatterNodeFidOrder.at(rank_))
   {
-    PHUB_CHECK(buffer_read_start_pos_.at(fid) + this->smaller_leaf_histogram_array_[fid].SizeOfHistgram() < pHubShadowCopy.size()) << buffer_read_start_pos_.at(fid) << " + " << this->smaller_leaf_histogram_array_[fid].SizeOfHistgram()  << " vs " << pHubShadowCopy.size();
+    PHUB_CHECK(buffer_read_start_pos_.at(fid) + this->smaller_leaf_histogram_array_[fid].SizeOfHistgram() - 1 < pHubShadowCopy.size()) << buffer_read_start_pos_.at(fid) << " + " << this->smaller_leaf_histogram_array_[fid].SizeOfHistgram()  << " vs " << pHubShadowCopy.size();
     std::memcpy(pHubShadowCopy.data() + buffer_read_start_pos_.at(fid), srcAddr + offset, this->smaller_leaf_histogram_array_[fid].SizeOfHistgram());
     offset += this->smaller_leaf_histogram_array_[fid].SizeOfHistgram();
   }
