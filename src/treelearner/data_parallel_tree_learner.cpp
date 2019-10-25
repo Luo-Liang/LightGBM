@@ -404,9 +404,9 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
     //the buffer_write_start_pos is offset by many previous nodes.
     //offsets this so the buffers in PHub buffer lies compact, from the start key of each node.
     int prevNodeSum = reduceScatterBlockLenAccSum.at(nodeId) - block_len_.at(nodeId);
-    char* writeLocation = (char*)reduceScatterNodeStartingAddress.at(nodeId) + buffer_write_start_pos_[feature_index] - prevNodeSum;
+    char *writeLocation = (char *)reduceScatterNodeStartingAddress.at(nodeId) + buffer_write_start_pos_[feature_index] - prevNodeSum;
     //check writeLocation is indeed within range.
-    PHUB_CHECK(writeLocation >= (char*)reduceScatterNodeStartingAddress.at(nodeId) && writeLocation + writeBytes - 1 < reduceScatterNodeStartingAddress.at(nodeId) + reduceScatterPerNodeBufferSize);
+    PHUB_CHECK(writeLocation >= (char *)reduceScatterNodeStartingAddress.at(nodeId) && writeLocation + writeBytes - 1 < reduceScatterNodeStartingAddress.at(nodeId) + reduceScatterPerNodeBufferSize);
     std::memcpy(writeLocation, this->smaller_leaf_histogram_array_[feature_index].RawData(), writeBytes);
     //reduceScatterNodeFidOrder.push_back(feature_index);
     //unfortunately feature index's address is non-strictly-increasing.
@@ -455,9 +455,17 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
   //                        block_len_.data(), output_buffer_.data(), static_cast<comm_size_t>(output_buffer_.size()), &HistogramBinEntry::SumReducer);
 
   //fprintf(stderr, str.c_str());
+  static times = 0;
+  static std::vector<double> spans;
   Timer t;
   pHubReduceScatter->Reduce(tasks);
-  fprintf(stderr,"[%d] reduce scatter: %f us\n",rank_, t.ns() / 1000.0);
+  spans.push_back(t.ns());
+
+  times++ if (times % 1000 == 0)
+  {
+    float average = std::accumulate(spans.begin(), spans.end(), 0.0) / spans.size();
+    fprintf(stderr, "[%d] avg reduce scatter: %f us\n", rank_, average / 1000.0);
+  }
   //now copy back. simple
   int copyBytes = reduceScatterNodeByteCounters.at(rank_)->load();
   void *srcAddr = reduceScatterNodeStartingAddress.at(rank_);
