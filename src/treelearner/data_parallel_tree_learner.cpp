@@ -80,7 +80,7 @@ void PHubHistogramBinEntrySumReducer(char *src, char *dst)
   HistogramBinEntry *dest = (HistogramBinEntry *)dst;
   //if (idx == 0)
   {
-    fprintf(stderr, "PHUB:[%d][dst = %p] src->cnt = %d, src->sum_g = %f, src->sum_h = %f, dst->cnt = %d, dst->sum_g = %f, dst->sum_h = %f\n", Network::rank(), dst, source->cnt, source->sum_gradients, source->sum_hessians, dest->cnt, dest->sum_gradients, dest->sum_hessians);
+    //fprintf(stderr, "PHUB:[%d][dst = %p] src->cnt = %d, src->sum_g = %f, src->sum_h = %f, dst->cnt = %d, dst->sum_g = %f, dst->sum_h = %f\n", Network::rank(), dst, source->cnt, source->sum_gradients, source->sum_hessians, dest->cnt, dest->sum_gradients, dest->sum_hessians);
   }
   //it will be called repeatedly as more data is streamed to PHub
   dest->cnt += source->cnt;
@@ -88,7 +88,7 @@ void PHubHistogramBinEntrySumReducer(char *src, char *dst)
   dest->sum_hessians += source->sum_hessians;
   //if (idx == 0)
   {
-    fprintf(stderr, "PHUB:[%d][dst = %p]         dst->cnt = %d, dst->sum_g = %f, dst->sum_h = %f\n", Network::rank(), dst, dest->cnt, dest->sum_gradients, dest->sum_hessians);
+    //fprintf(stderr, "PHUB:[%d][dst = %p]         dst->cnt = %d, dst->sum_g = %f, dst->sum_h = %f\n", Network::rank(), dst, dest->cnt, dest->sum_gradients, dest->sum_hessians);
   }
   //idx++;
 }
@@ -283,7 +283,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
       }
       block_len_[i] += num_bin * sizeof(HistogramBinEntry);
     }
-    reduceScatterBlockLenAccSum.at(i) = i == 0 ? block_len_[i] : block_len_[i - 1] + reduceScatterBlockLenAccSum.at(i - 1);
+    reduceScatterBlockLenAccSum.at(i) = i == 0 ? block_len_[i] : block_len_[i] + reduceScatterBlockLenAccSum.at(i - 1);
     reduce_scatter_size_ += block_len_[i];
   }
 
