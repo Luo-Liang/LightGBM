@@ -457,7 +457,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
   //fprintf(stderr, str.c_str());
   Timer t;
   pHubReduceScatter->Reduce(tasks);
-  fprintf("[%d] reduce scatter: %f us\n",t.ns() / 1000.0);
+  fprintf(stderr,"[%d] reduce scatter: %f us\n",t.ns() / 1000.0);
   //now copy back. simple
   int copyBytes = reduceScatterNodeByteCounters.at(rank_)->load();
   void *srcAddr = reduceScatterNodeStartingAddress.at(rank_);
