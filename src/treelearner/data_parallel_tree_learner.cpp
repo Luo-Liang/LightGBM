@@ -405,8 +405,8 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
     int prevNodeSum = reduceScatterBlockLenAccSum.at(nodeId) - block_len_.at(nodeId);
     char* writeLocation = (char*)reduceScatterNodeStartingAddress.at(nodeId) + buffer_write_start_pos_[feature_index] - prevNodeSum;
     //check writeLocation is indeed within range.
-    PHUB_CHECK(writeLocation >= (char*)reduceScatterNodeStartingAddress.at(nodeId) && writeLocation + writeBytes - 1 < reduceScatterBlockLenAccSum.at(nodeId) + reduceScatterPerNodeBufferSize);
-    std::memcpy(, this->smaller_leaf_histogram_array_[feature_index].RawData(), writeBytes);
+    PHUB_CHECK(writeLocation >= (char*)reduceScatterNodeStartingAddress.at(nodeId) && writeLocation + writeBytes - 1 < reduceScatterNodeStartingAddress.at(nodeId) + reduceScatterPerNodeBufferSize);
+    std::memcpy(writeLocation, this->smaller_leaf_histogram_array_[feature_index].RawData(), writeBytes);
     //reduceScatterNodeFidOrder.push_back(feature_index);
     //unfortunately feature index's address is non-strictly-increasing.
     //unfortunately, copying by order doesn't work.
