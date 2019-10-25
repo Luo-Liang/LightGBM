@@ -129,14 +129,15 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
   pHubBackingBufferForReduceScatter.resize(total_buffer_size);
   reduceScatterNodeStartingAddress.resize(num_machines_);
   reduceScatterNodeStartingKey.resize(num_machines_);
+  reduceScatterBlockLenAccSum.resize(num_machines_);
 
   for (int i = 0; i < num_machines_; i++)
   {
     reduceScatterNodeByteCounters.push_back(std::make_unique<std::atomic<int>>(0));
     reduceScatterNodeStartingAddress.at(i) = pHubBackingBufferForReduceScatter.data() + i * buffer_size;
     reduceScatterNodeStartingKey.at(i) = i * (numbin / chunkSize);
-    reduceScatterNodeFidOrder.push_back(std::vector<int>());
-    reduceScatterNodeFidOrder.back().reserve(numbin);
+    //reduceScatterNodeFidOrder.push_back(std::vector<int>());
+    //reduceScatterNodeFidOrder.reserve(numbin);
   }
   //void getChunkedInformationGivenBuffer(
   //void *ptr,
@@ -273,7 +274,6 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
   {
     block_len_[i] = 0;
     *(reduceScatterNodeByteCounters.at(i)) = 0;
-    reduceScatterNodeFidOrder.at(i).clear();
     for (auto fid : feature_distribution[i])
     {
       auto num_bin = this->train_data_->FeatureNumBin(fid);
@@ -283,6 +283,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
       }
       block_len_[i] += num_bin * sizeof(HistogramBinEntry);
     }
+    reduceScatterBlockLenAccSum.at(i) = i == 0 ? block_len_[i] : block_len_[i - 1] + reduceScatterBlockLenAccSum.at(i - 1);
     reduce_scatter_size_ += block_len_[i];
   }
 
@@ -383,7 +384,8 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
   // construct local histograms
   //I am skeptical whether OMP will help in this case.
   //#pragma omp parallel for schedule(static)
-  std::vector<std::vector<int>> node2Fids();
+
+  std::vector<PLinkKey> tasks;
   for (int feature_index = 0; feature_index < this->num_features_; ++feature_index)
   {
     if ((!this->is_feature_used_.empty() && this->is_feature_used_[feature_index] == false))
@@ -396,18 +398,21 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
 
     //copy to plink
     auto nodeId = reduceScatterInnerFid2NodeMapping.at(feature_index);
-    auto fid2Loc = reduceScatterNodeByteCounters.at(nodeId)->fetch_add(this->smaller_leaf_histogram_array_[feature_index].SizeOfHistgram(), std::memory_order_relaxed) + (char *)reduceScatterNodeStartingAddress.at(nodeId);
-    std::memcpy(fid2Loc, this->smaller_leaf_histogram_array_[feature_index].RawData(), this->smaller_leaf_histogram_array_[feature_index].SizeOfHistgram());
-    reduceScatterNodeFidOrder.at(nodeId).push_back(feature_index);
-    //how do we know where to copy back? we cannot have PLink  directly write to output buffer because plink operates at key level.
-    //good news is the key assignment makes sure bins belong to the same node are continuous.
-    //fprintf(stderr, "[%d] fid = %d, target = %d %p (orig) %p (phub), bytes = %d\n", rank_, feature_index, nodeId, input_buffer_.data() + buffer_write_start_pos_[feature_index], fid2Loc, this->smaller_leaf_histogram_array_[feature_index].SizeOfHistgram());
-
+    auto writeBytes = this->smaller_leaf_histogram_array_[feature_index].SizeOfHistgram();
+    reduceScatterNodeByteCounters.at(nodeId)->fetch_add(writeBytes, std::memory_order_relaxed); // + (char *)reduceScatterNodeStartingAddress.at(nodeId);
+    //the buffer_write_start_pos is offset by many previous nodes.
+    //offsets this so the buffers in PHub buffer lies compact, from the start key of each node.
+    int prevNodeSum = reduceScatterBlockLenAccSum.at(nodeId) - block_len_.at(nodeId);
+    char* writeLocation = (char*)reduceScatterNodeStartingAddress.at(nodeId) + buffer_write_start_pos_[feature_index] - prevNodeSum;
+    //check writeLocation is indeed within range.
+    PHUB_CHECK(writeLocation >= (char*)reduceScatterNodeStartingAddress.at(nodeId) && writeLocation + writeBytes - 1 < reduceScatterBlockLenAccSum.at(nodeId) + reduceScatterPerNodeBufferSize);
+    std::memcpy(, this->smaller_leaf_histogram_array_[feature_index].RawData(), writeBytes);
+    //reduceScatterNodeFidOrder.push_back(feature_index);
     //unfortunately feature index's address is non-strictly-increasing.
+    //unfortunately, copying by order doesn't work.
   }
 
   //for PHub, we need to first figure out keys, and this is very simple
-  std::vector<PLinkKey> tasks;
 
   //std::string str = ""; //CxxxxStringFormat("[%d] reduce scatter keys:\n", rank_);
   for (int i = 0; i < num_machines_; i++)
@@ -415,6 +420,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
     //check block length agrees
     PLinkKey start = reduceScatterNodeStartingKey.at(i);
     PHUB_CHECK(block_len_.at(i) == reduceScatterNodeByteCounters.at(i)->load()) << " block_len_ is " << block_len_.at(i) << " vs. reduce scatter bytes " << reduceScatterNodeByteCounters.at(i)->load();
+
     int count = (int)ceil(1.0 * reduceScatterNodeByteCounters.at(i)->load() / sizeof(HistogramBinEntry) / pHubChunkSize);
     //str += CxxxxStringFormat(", [to:%d] bytes = %d, number of bins = %d. keys = %d :: ", i, block_len_.at(i),  block_len_.at(i) / sizeof(HistogramBinEntry), count);
 
@@ -461,14 +467,16 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
   PHUB_CHECK(copyBytes == block_len_.at(rank_));
 
   std::vector<char> pHubShadowCopy(copyBytes);
+  //with new mapping scheme the order is kept same as original, so no need to keep track
+  std::memcpy(pHubShadowCopy.data(), srcAddr, copyBytes);
   //copy to shadowCopt first
-  int offset = 0;
-  for (auto fid : reduceScatterNodeFidOrder.at(rank_))
-  {
-    PHUB_CHECK(buffer_read_start_pos_.at(fid) + this->smaller_leaf_histogram_array_[fid].SizeOfHistgram() - 1 < pHubShadowCopy.size()) << buffer_read_start_pos_.at(fid) << " + " << this->smaller_leaf_histogram_array_[fid].SizeOfHistgram()  << " vs " << pHubShadowCopy.size();
-    std::memcpy(pHubShadowCopy.data() + buffer_read_start_pos_.at(fid), srcAddr + offset, this->smaller_leaf_histogram_array_[fid].SizeOfHistgram());
-    offset += this->smaller_leaf_histogram_array_[fid].SizeOfHistgram();
-  }
+  // int offset = 0;
+  // for (auto fid : reduceScatterNodeFidOrder)
+  // {
+  //   PHUB_CHECK(buffer_read_start_pos_.at(fid) + this->smaller_leaf_histogram_array_[fid].SizeOfHistgram() - 1 < pHubShadowCopy.size()) << buffer_read_start_pos_.at(fid) << " + " << this->smaller_leaf_histogram_array_[fid].SizeOfHistgram()  << " vs " << pHubShadowCopy.size();
+  //   std::memcpy(pHubShadowCopy.data() + buffer_read_start_pos_.at(fid), srcAddr + offset, this->smaller_leaf_histogram_array_[fid].SizeOfHistgram());
+  //   offset += this->smaller_leaf_histogram_array_[fid].SizeOfHistgram();
+  // }
 
   for (size_t i = 0; i < copyBytes / sizeof(HistogramBinEntry); i++)
   {
@@ -484,18 +492,11 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
   }
 
   //reduce scatter puts this back to the beginning of output buffer :)
-  //std::memcpy(output_buffer_.data(), srcAddr, copyBytes);
-  int phubCopyOffset = 0;
-  for (auto fid : reduceScatterNodeFidOrder.at(rank_))
-  {
-    std::memcpy(output_buffer_.data() + buffer_read_start_pos_.at(fid), srcAddr + phubCopyOffset, this->smaller_leaf_histogram_array_[fid].SizeOfHistgram());
-    phubCopyOffset += this->smaller_leaf_histogram_array_[fid].SizeOfHistgram();
-  }
+  std::memcpy(output_buffer_.data(), srcAddr, copyBytes);
   this->FindBestSplitsFromHistograms(this->is_feature_used_, true);
   for (int i = 0; i < num_machines_; i++)
   {
     *reduceScatterNodeByteCounters.at(i) = 0;
-    reduceScatterNodeFidOrder.at(i).clear();
   }
 }
 

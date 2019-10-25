@@ -90,7 +90,7 @@ private:
   std::vector<void *> reduceScatterNodeStartingAddress;
   std::vector<PLinkKey> reduceScatterNodeStartingKey;
 
-  std::vector<std::vector<int>> reduceScatterNodeFidOrder;
+  std::vector<int> reduceScatterBlockLenAccSum;
 
 
   int reduceScatterPerNodeBufferSize = 0;
