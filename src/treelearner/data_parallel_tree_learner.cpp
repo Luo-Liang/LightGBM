@@ -455,13 +455,14 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
   //                        block_len_.data(), output_buffer_.data(), static_cast<comm_size_t>(output_buffer_.size()), &HistogramBinEntry::SumReducer);
 
   //fprintf(stderr, str.c_str());
-  static times = 0;
+  static int times = 0;
   static std::vector<double> spans;
   Timer t;
   pHubReduceScatter->Reduce(tasks);
   spans.push_back(t.ns());
 
-  times++ if (times % 1000 == 0)
+  times++;
+   if (times % 1000 == 0)
   {
     float average = std::accumulate(spans.begin(), spans.end(), 0.0) / spans.size();
     fprintf(stderr, "[%d] avg reduce scatter: %f us\n", rank_, average / 1000.0);
