@@ -335,21 +335,23 @@ void GBDT::Bagging(int iter)
 void GBDT::Train(int snapshot_freq, const std::string &model_output_path)
 {
   bool is_finished = false;
+  std::vector<double> spans; 
   auto start_time = std::chrono::steady_clock::now();
   for (int iter = 0; iter < config_->num_iterations && !is_finished; ++iter)
   {
     Timer t;
     is_finished = TrainOneIter(nullptr, nullptr);
+    spans.push_back(t.s());
     if (!is_finished)
     {
       is_finished = EvalAndCheckEarlyStopping();
     }
     auto end_time = std::chrono::steady_clock::now();
     // output used time per iteration
-    auto speed = std::chrono::duration<double, std::milli>(end_time - start_time).count() * 1e-3;
     auto totalComm = Network::GetNetworkTime(NetworkTimeType::EXCLUSIVESENDRECV);
     auto bytesOnWire = Network::GetGlobalNetworkTransferSize() / 1024.0 / 1024.0;
-    Log::Info("[%d:%s] %f seconds elapsed, current iter = %fs. finished iteration %d. exclusive network time = %f seconds (%f%%) Bytes on Wire:%fMB. SEND = %f seconds, and RECV = %f seconds. SENDRECV = %f. total network thread = %d", Network::rank(), Network::GetHostName().c_str(), speed, t.s(), iter + 1, totalComm, 100.0 * totalComm / speed, bytesOnWire, Network::GetNetworkTime(NetworkTimeType::SEND), Network::GetNetworkTime(NetworkTimeType::RECV), Network::GetNetworkTime(NetworkTimeType::SENDRECV), (int)Network::GetNetworkThreadCount());
+    float average = std::accumulate(spans.begin(), spans.end(), 0.0) / spans.size();
+    Log::Info("[%d:%s] avg iter = %fs. finished iteration %d. ", Network::rank(), Network::GetHostName().c_str(), average, iter + 1);
     if (snapshot_freq > 0 && (iter + 1) % snapshot_freq == 0)
     {
       std::string snapshot_out = model_output_path + ".snapshot_iter_" + std::to_string(iter + 1);
