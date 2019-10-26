@@ -232,6 +232,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::ResetConfig(const Config *config)
 template <typename TREELEARNER_T>
 void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
 {
+  EASY_FUNCTION(profiler::colors::Red50);
   TREELEARNER_T::BeforeTrain();
   // generate feature partition for current tree
   std::vector<std::vector<int>> feature_distribution(num_machines_, std::vector<int>());
@@ -366,8 +367,9 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
   pHubAllReduceT3->ApplicationSuppliedOutputAddrs.at(0) = &data; //&data1;
   COMPILER_BARRIER();
   //fine, no race, because syncrhonziation points introduced by work queues.
+  EASY_BLOCK("T3 AllReduce");
   pHubAllReduceT3->Reduce();
-
+  EASY_END_BLOCK;
   //PHUB_CHECK(std::get<0>(data1) == std::get<0>(data)) << std::get<0>(data1) << " vs " << std::get<0>(data);
   //PHUB_CHECK_VERY_CLOSE((double)std::get<1>(data1), (double)std::get<1>(data)) << std::get<1>(data1) << " vs " << std::get<1>(data);
   //PHUB_CHECK_VERY_CLOSE((double)std::get<2>(data1), (double)std::get<2>(data)) << std::get<2>(data1) << " vs " << std::get<2>(data);
@@ -381,13 +383,15 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
 template <typename TREELEARNER_T>
 void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
 {
-
+  EASY_FUNCTION(profiler::colors::Magenta);
   TREELEARNER_T::ConstructHistograms(this->is_feature_used_, true);
   // construct local histograms
   //I am skeptical whether OMP will help in this case.
   //#pragma omp parallel for schedule(static)
 
   std::vector<PLinkKey> tasks;
+
+  EASY_BLOCK("Calculating reduce scatter address", profiler::colors::Blue500);
   for (int feature_index = 0; feature_index < this->num_features_; ++feature_index)
   {
     if ((!this->is_feature_used_.empty() && this->is_feature_used_[feature_index] == false))
@@ -407,16 +411,18 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
     int prevNodeSum = reduceScatterBlockLenAccSum.at(nodeId) - block_len_.at(nodeId);
     char *writeLocation = (char *)reduceScatterNodeStartingAddress.at(nodeId) + buffer_write_start_pos_[feature_index] - prevNodeSum;
     //check writeLocation is indeed within range.
-    PHUB_CHECK(writeLocation >= (char *)reduceScatterNodeStartingAddress.at(nodeId) && writeLocation + writeBytes - 1 < (char*)reduceScatterNodeStartingAddress.at(nodeId) + reduceScatterPerNodeBufferSize);
+    PHUB_CHECK(writeLocation >= (char *)reduceScatterNodeStartingAddress.at(nodeId) && writeLocation + writeBytes - 1 < (char *)reduceScatterNodeStartingAddress.at(nodeId) + reduceScatterPerNodeBufferSize);
     std::memcpy(writeLocation, this->smaller_leaf_histogram_array_[feature_index].RawData(), writeBytes);
     //reduceScatterNodeFidOrder.push_back(feature_index);
     //unfortunately feature index's address is non-strictly-increasing.
     //unfortunately, copying by order doesn't work.
   }
+  EASY_END_BLOCK;
 
   //for PHub, we need to first figure out keys, and this is very simple
 
   //std::string str = ""; //CxxxxStringFormat("[%d] reduce scatter keys:\n", rank_);
+  EASY_BLOCK("Calculating keys", profiler::colors::Orange);
   for (int i = 0; i < num_machines_; i++)
   {
     //check block length agrees
@@ -447,7 +453,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
     // }
     //PHUB_CHECK(memcmp(input_buffer_.data() + block_start_.at(i), reduceScatterNodeStartingAddress.at(i), block_len_.at(i)) == 0) << " id: " << rank_ << " to " << num_machines_ << " send mismatch.";
   }
-
+  EASY_END_BLOCK;
   //fprintf(stderr, "[%d] reduce scatter keys: %s\n", rank_, str.c_str());
 
   // Reduce scatter for histogram
@@ -459,7 +465,9 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
   // static int times = 0;
   // static std::vector<double> spans;
   // Timer t;
+  EASY_BLOCK("ReduceScatter"); 
   pHubReduceScatter->Reduce(tasks);
+  EASY_END_BLOCK;
   //spans.push_back(t.ns());
 
   // times++;
