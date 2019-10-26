@@ -122,7 +122,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
   auto chunkSize = atoi(pHubGetMandatoryEnvironmemtVariable("PHubChunkElementSize").c_str());
   pHubChunkSize = chunkSize;
   size_t numbin = RoundUp(this->train_data_->NumTotalBin(), chunkSize);
-  fprintf(stderr, "[%d] numbin = %d, adjusted = %d. chunk = %d\n", rank_, this->train_data_->NumTotalBin(), numbin, chunkSize);
+  fprintf(stderr, "[%d] numbin = %d, adjusted = %d. chunk = %d\n", rank_, (int)this->train_data_->NumTotalBin(), (int)numbin, (int)chunkSize);
   size_t buffer_size = numbin * sizeof(HistogramBinEntry);
   reduceScatterPerNodeBufferSize = buffer_size;
   auto total_buffer_size = buffer_size * num_machines_;
@@ -175,7 +175,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
   setenv("PHubChunkElementSize", "1", 1);
   pHubAllReduceT3 = createPHubInstance(pHubBackingBufferForAllReduceT3.data(), 1, num_machines_, rank_, 1, PHubDataType::CUSTOM, PHUB_ALL_REDUCE_T3_KEY0_SIZE);
   pHubAllReduceT3->SetReductionFunction(&PHubTuple3Reducer);
-  PHUB_CHECK(pHubAllReduceT3->keySizes.size() == 1 && pHubAllReduceT3->keySizes.at(0) == pHubBackingBufferForAllReduceT3.size());
+  PHUB_CHECK(pHubAllReduceT3->keySizes.size() == 1 && (size_t)pHubAllReduceT3->keySizes.at(0) == pHubBackingBufferForAllReduceT3.size());
 
   if (getenv("PHubMaximumCore") != nullptr)
   {
@@ -187,7 +187,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
   pHubBackingBufferForAllReduceSplitInfo.resize(PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE);
   setenv("PHubChunkElementSize", "2", 1);
   pHubAllReduceSplitInfo = createPHubInstance(pHubBackingBufferForAllReduceSplitInfo.data(), 2, num_machines_, rank_, 2, PHubDataType::CUSTOM, PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE / 2);
-  PHUB_CHECK(pHubAllReduceSplitInfo->keySizes.size() == 1 && pHubAllReduceSplitInfo->keySizes.at(0) == pHubBackingBufferForAllReduceSplitInfo.size());
+  PHUB_CHECK(pHubAllReduceSplitInfo->keySizes.size() == 1 && (size_t)pHubAllReduceSplitInfo->keySizes.at(0) == pHubBackingBufferForAllReduceSplitInfo.size());
 
   pHubAllReduceSplitInfo->SetReductionFunction(&PHubReducerForSyncUpGlobalBestSplit);
   //both write to input_buffer.
@@ -381,6 +381,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
 template <typename TREELEARNER_T>
 void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
 {
+
   TREELEARNER_T::ConstructHistograms(this->is_feature_used_, true);
   // construct local histograms
   //I am skeptical whether OMP will help in this case.
@@ -406,7 +407,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
     int prevNodeSum = reduceScatterBlockLenAccSum.at(nodeId) - block_len_.at(nodeId);
     char *writeLocation = (char *)reduceScatterNodeStartingAddress.at(nodeId) + buffer_write_start_pos_[feature_index] - prevNodeSum;
     //check writeLocation is indeed within range.
-    PHUB_CHECK(writeLocation >= (char *)reduceScatterNodeStartingAddress.at(nodeId) && writeLocation + writeBytes - 1 < reduceScatterNodeStartingAddress.at(nodeId) + reduceScatterPerNodeBufferSize);
+    PHUB_CHECK(writeLocation >= (char *)reduceScatterNodeStartingAddress.at(nodeId) && writeLocation + writeBytes - 1 < (char*)reduceScatterNodeStartingAddress.at(nodeId) + reduceScatterPerNodeBufferSize);
     std::memcpy(writeLocation, this->smaller_leaf_histogram_array_[feature_index].RawData(), writeBytes);
     //reduceScatterNodeFidOrder.push_back(feature_index);
     //unfortunately feature index's address is non-strictly-increasing.
@@ -455,18 +456,18 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
   //                        block_len_.data(), output_buffer_.data(), static_cast<comm_size_t>(output_buffer_.size()), &HistogramBinEntry::SumReducer);
 
   //fprintf(stderr, str.c_str());
-  static int times = 0;
-  static std::vector<double> spans;
-  Timer t;
+  // static int times = 0;
+  // static std::vector<double> spans;
+  // Timer t;
   pHubReduceScatter->Reduce(tasks);
-  spans.push_back(t.ns());
+  //spans.push_back(t.ns());
 
-  times++;
-   if (times % 1000 == 0)
-  {
-    float average = std::accumulate(spans.begin(), spans.end(), 0.0) / spans.size();
-    fprintf(stderr, "[%d] avg reduce scatter: %f us\n", rank_, average / 1000.0);
-  }
+  // times++;
+  // if (times % 1000 == 0)
+  // {
+  //   float average = std::accumulate(spans.begin(), spans.end(), 0.0) / spans.size();
+  //   fprintf(stderr, "[%d] avg reduce scatter: %f us\n", rank_, average / 1000.0);
+  // }
   //now copy back. simple
   int copyBytes = reduceScatterNodeByteCounters.at(rank_)->load();
   void *srcAddr = reduceScatterNodeStartingAddress.at(rank_);

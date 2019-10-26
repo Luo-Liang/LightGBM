@@ -37,6 +37,11 @@ elseif(MSVC)
   cmake_minimum_required(VERSION 3.8)
 endif()
 
+ADD_DEFINITIONS(-DBUILD_WITH_EASY_PROFILER)
+include_directories(easy_profiler/easy_profiler_core/include)
+add_subdirectory(easy_profiler)
+
+
 if(USE_SWIG)
   find_package(SWIG REQUIRED)
   find_package(Java REQUIRED)
@@ -175,6 +180,9 @@ file(GLOB SOURCES
 add_executable(lightgbm src/main.cpp ${SOURCES})
 add_library(_lightgbm SHARED src/c_api.cpp src/lightgbm_R.cpp ${SOURCES})
 include_directories(/usr/local/include/PHub)
+target_link_libraries(_lightgbm easy_profiler)
+target_link_libraries(lightgbm easy_profiler)
+
 
 if(MSVC)
     set_target_properties(_lightgbm PROPERTIES OUTPUT_NAME "lib_lightgbm")
