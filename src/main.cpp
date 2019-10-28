@@ -10,6 +10,7 @@ int main(int argc, char **argv)
 {
   try
   {
+    EASY_PROFILER_ENABLE;
     LightGBM::Application app(argc, argv);
     app.Run();
     auto envFileName = std::getenv("LIGHTGBM_PROFILE_NAME");
