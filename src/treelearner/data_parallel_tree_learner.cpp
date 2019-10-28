@@ -392,15 +392,16 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
   std::vector<PLinkKey> tasks;
 
   EASY_BLOCK("Calculating reduce scatter address", profiler::colors::Blue500);
+#pragma omp parallel for schedule(static)
   for (int feature_index = 0; feature_index < this->num_features_; ++feature_index)
   {
     if ((!this->is_feature_used_.empty() && this->is_feature_used_[feature_index] == false))
       continue;
     // copy to buffer
 
-    // std::memcpy(input_buffer_.data() + buffer_write_start_pos_[feature_index],
-    //             this->smaller_leaf_histogram_array_[feature_index].RawData(),
-    //             this->smaller_leaf_histogram_array_[feature_index].SizeOfHistgram());
+    std::memcpy(input_buffer_.data() + buffer_write_start_pos_[feature_index],
+                 this->smaller_leaf_histogram_array_[feature_index].RawData(),
+                 this->smaller_leaf_histogram_array_[feature_index].SizeOfHistgram());
 
     //copy to plink
     auto nodeId = reduceScatterInnerFid2NodeMapping.at(feature_index);
@@ -458,14 +459,14 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
 
   // Reduce scatter for histogram
 
-  // Network::ReduceScatter(input_buffer_.data(), reduce_scatter_size_, sizeof(HistogramBinEntry), block_start_.data(),
-  //                        block_len_.data(), output_buffer_.data(), static_cast<comm_size_t>(output_buffer_.size()), &HistogramBinEntry::SumReducer);
+   Network::ReduceScatter(input_buffer_.data(), reduce_scatter_size_, sizeof(HistogramBinEntry), block_start_.data(),
+                          block_len_.data(), output_buffer_.data(), static_cast<comm_size_t>(output_buffer_.size()), &HistogramBinEntry::SumReducer);
 
   //fprintf(stderr, str.c_str());
   // static int times = 0;
   // static std::vector<double> spans;
   // Timer t;
-  EASY_BLOCK("ReduceScatter"); 
+  EASY_BLOCK("ReduceScatter");
   pHubReduceScatter->Reduce(tasks);
   EASY_END_BLOCK;
   //spans.push_back(t.ns());
@@ -487,22 +488,22 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
   PHUB_CHECK(copyBytes % sizeof(HistogramBinEntry) == 0) << copyBytes << " vs " << block_len_.at(rank_);
   PHUB_CHECK(copyBytes == block_len_.at(rank_));
 
-  //std::vector<char> pHubShadowCopy(copyBytes);
+  std::vector<char> pHubShadowCopy(copyBytes);
   //with new mapping scheme the order is kept same as original, so no need to keep track
-  //std::memcpy(pHubShadowCopy.data(), srcAddr, copyBytes);
+  std::memcpy(pHubShadowCopy.data(), srcAddr, copyBytes);
 
-  // for (size_t i = 0; i < copyBytes / sizeof(HistogramBinEntry); i++)
-  // {
-  //   //the weird semantic of reduce scatter in output_buffer, from the beginning.
-  //   var phubE = (HistogramBinEntry *)(pHubShadowCopy.data() + sizeof(HistogramBinEntry) * i);
-  //   var origE = (HistogramBinEntry *)(output_buffer_.data() + sizeof(HistogramBinEntry) * i);
+   for (size_t i = 0; i < copyBytes / sizeof(HistogramBinEntry); i++)
+   {
+     //the weird semantic of reduce scatter in output_buffer, from the beginning.
+     var phubE = (HistogramBinEntry *)(pHubShadowCopy.data() + sizeof(HistogramBinEntry) * i);
+     var origE = (HistogramBinEntry *)(output_buffer_.data() + sizeof(HistogramBinEntry) * i);
 
-  //   PHUB_CHECK(phubE->cnt == origE->cnt) << "rank: " << rank_ << " idx " << i << " orig.cnt = " << origE->cnt << " vs " << phubE->cnt << " dst:" << origE;
-  //   PHUB_CHECK_VERY_CLOSE(phubE->sum_gradients, origE->sum_gradients) << "rank: " << rank_ << "idx " << i
-  //                                                                     << " orig.cnt = " << origE->sum_gradients << " vs " << phubE->sum_gradients;
-  //   PHUB_CHECK_VERY_CLOSE(phubE->sum_hessians, origE->sum_hessians) << "rank: " << rank_ << " idx " << i
-  //                                                                   << " orig.cnt = " << origE->sum_hessians << " vs " << phubE->sum_hessians;
-  // }
+     PHUB_CHECK(phubE->cnt == origE->cnt) << "rank: " << rank_ << " idx " << i << " orig.cnt = " << origE->cnt << " vs " << phubE->cnt << " dst:" << origE;
+     PHUB_CHECK_VERY_CLOSE(phubE->sum_gradients, origE->sum_gradients) << "rank: " << rank_ << "idx " << i
+                                                                       << " orig.cnt = " << origE->sum_gradients << " vs " << phubE->sum_gradients;
+     PHUB_CHECK_VERY_CLOSE(phubE->sum_hessians, origE->sum_hessians) << "rank: " << rank_ << " idx " << i
+                                                                     << " orig.cnt = " << origE->sum_hessians << " vs " << phubE->sum_hessians;
+   }
 
   //reduce scatter puts this back to the beginning of output buffer :)
   std::memcpy(output_buffer_.data(), srcAddr, copyBytes);
