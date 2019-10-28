@@ -8,6 +8,7 @@
 #include <LightGBM/objective_function.h>
 #include <LightGBM/utils/array_args.h>
 #include <LightGBM/utils/common.h>
+#include <easy/profiler.h>
 
 #include <algorithm>
 #include <queue>
@@ -171,6 +172,7 @@ void SerialTreeLearner::ResetConfig(const Config* config) {
 }
 
 Tree* SerialTreeLearner::Train(const score_t* gradients, const score_t *hessians, bool is_constant_hessian, const Json& forced_split_json) {
+  EASY_FUNCTION(profiler::colors::Green200);
   gradients_ = gradients;
   hessians_ = hessians;
   is_constant_hessian_ = is_constant_hessian;
