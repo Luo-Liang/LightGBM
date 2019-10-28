@@ -93,7 +93,6 @@ private:
 
   std::vector<int> reduceScatterBlockLenAccSum;
 
-
   int reduceScatterPerNodeBufferSize = 0;
   int pHubReduceScatterPerNodeKeyCount = 0;
   int pHubAllReducePerNodeKeyCount = 0;
@@ -239,7 +238,7 @@ inline void PHubReducerForSyncUpGlobalBestSplit(char *src, char *dst)
 // To-do: reduce the communication cost by using bitset to communicate.
 inline void SyncUpGlobalBestSplit(char *input_buffer_, char *output_buffer_, SplitInfo *smaller_best_split, SplitInfo *larger_best_split, int max_cat_threshold, std::shared_ptr<PHub> pHub = nullptr)
 {
-  EASY_FUNCTION(profiler::colors::Green); 
+  EASY_FUNCTION(profiler::colors::Green);
   // sync global best info
   int size = SplitInfo::Size(max_cat_threshold);
   smaller_best_split->CopyTo(input_buffer_);
@@ -267,17 +266,15 @@ inline void SyncUpGlobalBestSplit(char *input_buffer_, char *output_buffer_, Spl
   //two sizes at most in reduction
   //if (pHub != nullptr)
   EASY_BLOCK("Calculating sum", profiler::colors::Purple);
-  {
-    CHECK(size * 2 == pHub->keySizes.at(0));
-    //make sure PHub is set up correctly
-    //redirect read location
-    //i have only 1 key.
-    PHUB_CHECK(max_cat_threshold == 32) << "PHub currently hardcodes max_cat_threshold to 32. actual = " << max_cat_threshold;
-    pHub->Reduce();
-    //shadow run
-    //i need bit by bit equal.
-    //PHUB_CHECK(memcmp(pHub->ApplicationSuppliedOutputAddrs.at(0), output_buffer_, 2 * size) == 0);
-  }
+  CHECK(size * 2 == pHub->keySizes.at(0));
+  //make sure PHub is set up correctly
+  //redirect read location
+  //i have only 1 key.
+  PHUB_CHECK(max_cat_threshold == 32) << "PHub currently hardcodes max_cat_threshold to 32. actual = " << max_cat_threshold;
+  pHub->Reduce();
+  //shadow run
+  //i need bit by bit equal.
+  //PHUB_CHECK(memcmp(pHub->ApplicationSuppliedOutputAddrs.at(0), output_buffer_, 2 * size) == 0);
   EASY_END_BLOCK;
 
   // copy back
