@@ -14,6 +14,8 @@
 
 #include "gpu_tree_learner.h"
 #include "serial_tree_learner.h"
+#include <easy/profiler.h>
+
 
 namespace LightGBM {
 
@@ -188,10 +190,12 @@ class VotingParallelTreeLearner: public TREELEARNER_T {
 
 // To-do: reduce the communication cost by using bitset to communicate.
 inline void SyncUpGlobalBestSplit(char* input_buffer_, char* output_buffer_, SplitInfo* smaller_best_split, SplitInfo* larger_best_split, int max_cat_threshold) {
+  EASY_FUNCTION(profiler::colors::Green);  
   // sync global best info
   int size = SplitInfo::Size(max_cat_threshold);
   smaller_best_split->CopyTo(input_buffer_);
   larger_best_split->CopyTo(input_buffer_ + size);
+  EASY_BLOCK("Calculating sum", profiler::colors::Purple);
   Network::Allreduce(input_buffer_, size * 2, size, output_buffer_,
                      [] (const char* src, char* dst, int size, comm_size_t len) {
     comm_size_t used_size = 0;
@@ -207,6 +211,7 @@ inline void SyncUpGlobalBestSplit(char* input_buffer_, char* output_buffer_, Spl
       used_size += size;
     }
   });
+  EASY_END_BLOCK;
   // copy back
   smaller_best_split->CopyFrom(output_buffer_);
   larger_best_split->CopyFrom(output_buffer_ + size);
