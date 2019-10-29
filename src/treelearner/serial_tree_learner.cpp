@@ -171,6 +171,7 @@ void SerialTreeLearner::ResetConfig(const Config* config) {
 }
 
 Tree* SerialTreeLearner::Train(const score_t* gradients, const score_t *hessians, bool is_constant_hessian, const Json& forced_split_json) {
+  EASY_FUNCTION(profiler::colors::Green200);
   gradients_ = gradients;
   hessians_ = hessians;
   is_constant_hessian_ = is_constant_hessian;
