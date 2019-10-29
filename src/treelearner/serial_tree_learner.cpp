@@ -8,7 +8,7 @@
 #include <LightGBM/objective_function.h>
 #include <LightGBM/utils/array_args.h>
 #include <LightGBM/utils/common.h>
-
+#include <easy/profiler.h>
 #include <algorithm>
 #include <queue>
 #include <unordered_map>
