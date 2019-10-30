@@ -232,7 +232,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::ResetConfig(const Config *config)
 template <typename TREELEARNER_T>
 void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
 {
-  EASY_FUNCTION(profiler::colors::Red50);
+  //EASY_FUNCTION(profiler::colors::Red50);
   TREELEARNER_T::BeforeTrain();
   // generate feature partition for current tree
   std::vector<std::vector<int>> feature_distribution(num_machines_, std::vector<int>());
@@ -383,7 +383,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
 template <typename TREELEARNER_T>
 void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
 {
-  EASY_FUNCTION(profiler::colors::Magenta);
+  //EASY_FUNCTION(profiler::colors::Magenta);
   TREELEARNER_T::ConstructHistograms(this->is_feature_used_, true);
   // construct local histograms
   //I am skeptical whether OMP will help in this case.
@@ -391,7 +391,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
 
   std::vector<PLinkKey> tasks;
 
-  EASY_BLOCK("Calculating reduce scatter address", profiler::colors::Blue500);
+  //EASY_BLOCK("Calculating reduce scatter address", profiler::colors::Blue500);
 #pragma omp parallel for schedule(static)
   for (int feature_index = 0; feature_index < this->num_features_; ++feature_index)
   {
@@ -418,12 +418,12 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
     //unfortunately feature index's address is non-strictly-increasing.
     //unfortunately, copying by order doesn't work.
   }
-  EASY_END_BLOCK;
+  //EASY_END_BLOCK;
 
   //for PHub, we need to first figure out keys, and this is very simple
 
   //std::string str = ""; //CxxxxStringFormat("[%d] reduce scatter keys:\n", rank_);
-  EASY_BLOCK("Calculating keys", profiler::colors::Orange);
+  //EASY_BLOCK("Calculating keys", profiler::colors::Orange);
   for (int i = 0; i < num_machines_; i++)
   {
     //check block length agrees
@@ -454,7 +454,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
     // }
     //PHUB_CHECK(memcmp(input_buffer_.data() + block_start_.at(i), reduceScatterNodeStartingAddress.at(i), block_len_.at(i)) == 0) << " id: " << rank_ << " to " << num_machines_ << " send mismatch.";
   }
-  EASY_END_BLOCK;
+  //EASY_END_BLOCK;
   //fprintf(stderr, "[%d] reduce scatter keys: %s\n", rank_, str.c_str());
 
   // Reduce scatter for histogram
