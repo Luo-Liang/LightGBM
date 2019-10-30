@@ -931,7 +931,7 @@ void DatasetLoader::ConstructBinMappersFromTextData(int rank, int num_machines, 
     // different machines will find bin for different features
 
     int num_total_features = dataset->num_total_features_;
-    fprintf(stderr, "GlobalSyncUpByMin. rank = %d, num_machines = %d\n", rank, num_machines);    
+    //fprintf(stderr, "GlobalSyncUpByMin. rank = %d, num_machines = %d\n", rank, num_machines);    
     num_total_features = Network::GlobalSyncUpByMin(num_total_features);
     dataset->num_total_features_ = num_total_features;
     // start and len will store the process feature indices for different machines
