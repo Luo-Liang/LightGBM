@@ -258,7 +258,7 @@ inline void Linkers::Recv(int rank, char *data, int len)
                                      // len - recv_cnt
                                      std::min(len - recv_cnt, SocketConfig::kMaxReceiveSize));
   }
-  InferredTranferredBytes += len;
+  //InferredTranferredBytes += len;
   NetworkRecvTime += t.ns();
 }
 
@@ -278,7 +278,7 @@ inline void Linkers::Send(int rank, char *data, int len)
   {
     send_cnt += linkers_[rank]->Send(data + send_cnt, len - send_cnt);
   }
-  InferredTranferredBytes += len;
+  //InferredTranferredBytes += len;
   NetworkSendTime += t.ns();
 }
 
