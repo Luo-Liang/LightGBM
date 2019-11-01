@@ -10,6 +10,7 @@
 #include <LightGBM/prediction_early_stop.h>
 #include <LightGBM/utils/common.h>
 #include <LightGBM/utils/openmp_wrapper.h>
+#include <easy/profiler.h>
 
 #include <chrono>
 #include <ctime>
@@ -408,7 +409,9 @@ double ObtainAutomaticInitialScore(const ObjectiveFunction *fobj, int class_id)
   }
   if (Network::num_machines() > 1)
   {
+    EASY_BLOCK("GlobalSyncUpByMean");
     init_score = Network::GlobalSyncUpByMean(init_score);
+    EASY_END_BLOCK;
   }
   return init_score;
 }

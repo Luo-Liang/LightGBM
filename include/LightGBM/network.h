@@ -11,7 +11,7 @@
 #include <unordered_set>
 #include <mutex>
 #include <thread>
-
+#include <easy/profiler.h>
 #include <functional>
 #include <memory>
 #include <vector>

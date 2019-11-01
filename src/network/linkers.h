@@ -9,7 +9,7 @@
 #include <LightGBM/meta.h>
 #include <LightGBM/network.h>
 #include <LightGBM/utils/common.h>
-
+#include <easy/profiler.h>
 #include <string>
 #include <algorithm>
 #include <chrono>
@@ -315,10 +315,11 @@ inline void Linkers::SendRecv(int send_rank, char *send_data, int send_len,
 
 inline void Linkers::Recv(int rank, char *data, int len)
 {
-  {
-    std::lock_guard<std::mutex> guard(tidLock);
-    allTouchingTIDs.insert(std::this_thread::get_id());
-  }
+  EASY_FUNCTION(profiler::colors::PaleGold);
+  // {
+  //   std::lock_guard<std::mutex> guard(tidLock);
+  //   allTouchingTIDs.insert(std::this_thread::get_id());
+  // }
   Timer t;
   MPI_Status status;
   int read_cnt = 0;
@@ -329,16 +330,17 @@ inline void Linkers::Recv(int rank, char *data, int len)
     MPI_SAFE_CALL(MPI_Get_count(&status, MPI_BYTE, &cur_cnt));
     read_cnt += cur_cnt;
   }
-  InferredTranferredBytes += len;
-  NetworkRecvTime += t.ns();
+  // InferredTranferredBytes += len;
+  // NetworkRecvTime += t.ns();
 }
 
 inline void Linkers::Send(int rank, char *data, int len)
 {
-  {
-    std::lock_guard<std::mutex> guard(tidLock);
-    allTouchingTIDs.insert(std::this_thread::get_id());
-  }
+  EASY_FUNCTION(profiler::colors::Orange);
+  // {
+  //   std::lock_guard<std::mutex> guard(tidLock);
+  //   allTouchingTIDs.insert(std::this_thread::get_id());
+  // }
   Timer t;
   if (len <= 0)
   {
@@ -348,17 +350,18 @@ inline void Linkers::Send(int rank, char *data, int len)
   MPI_Request send_request;
   MPI_SAFE_CALL(MPI_Isend(data, len, MPI_BYTE, rank, 0, MPI_COMM_WORLD, &send_request));
   MPI_SAFE_CALL(MPI_Wait(&send_request, &status));
-  InferredTranferredBytes += len;
-  NetworkSendTime += t.ns();
+  // InferredTranferredBytes += len;
+  // NetworkSendTime += t.ns();
 }
 
 inline void Linkers::SendRecv(int send_rank, char *send_data, int send_len,
                               int recv_rank, char *recv_data, int recv_len)
 {
-  {
-    std::lock_guard<std::mutex> guard(tidLock);
-    allTouchingTIDs.insert(std::this_thread::get_id());
-  }
+  EASY_FUNCTION(profiler::colors::Cyan);
+  // {
+  //   std::lock_guard<std::mutex> guard(tidLock);
+  //   allTouchingTIDs.insert(std::this_thread::get_id());
+  // }
   Timer t;
   MPI_Request send_request;
   // send first, non-blocking
@@ -375,8 +378,8 @@ inline void Linkers::SendRecv(int send_rank, char *send_data, int send_len,
   }
   // wait for send complete
   MPI_SAFE_CALL(MPI_Wait(&send_request, &status));
-  InferredTranferredBytes += send_len + recv_len;
-  NetworkSendRecvTime += t.ns();
+  // InferredTranferredBytes += send_len + recv_len;
+  // NetworkSendRecvTime += t.ns();
 }
 
 #endif // USE_MPI
