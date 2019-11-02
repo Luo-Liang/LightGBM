@@ -349,7 +349,7 @@ void GBDT::Train(int snapshot_freq, const std::string &model_output_path)
     auto end_time = std::chrono::steady_clock::now();
     // output used time per iteration
     float average = std::accumulate(spans.begin(), spans.end(), 0.0) / spans.size();
-    Log::Info("[%d] avg iter = %fs. finished iteration %d.", Network::rank(), average, iter + 1);
+    fprintf(stderr, "[%d] avg iter = %fs. finished iteration %d.", Network::rank(), average, iter + 1);
 
     if (snapshot_freq > 0 && (iter + 1) % snapshot_freq == 0)
     {
