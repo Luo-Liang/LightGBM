@@ -336,7 +336,7 @@ void GBDT::Bagging(int iter)
 void GBDT::Train(int snapshot_freq, const std::string &model_output_path)
 {
   bool is_finished = false;
-  std::vector<double> spans; 
+  std::vector<double> spans;
   //auto start_time = std::chrono::steady_clock::now();
   for (int iter = 0; iter < config_->num_iterations && !is_finished; ++iter)
   {
@@ -350,13 +350,14 @@ void GBDT::Train(int snapshot_freq, const std::string &model_output_path)
     //auto end_time = std::chrono::steady_clock::now();
     // output used time per iteration
     //auto totalComm = Network::GetNetworkTime(NetworkTimeType::EXCLUSIVESENDRECV);
-    auto bytesOnWire = Network::GetGlobalNetworkTransferSize() / 1024.0 / 1024.0;
-    float average = std::accumulate(spans.begin(), spans.end(), 0.0) / spans.size();
-    fprintf(stderr, "[%d:%s] avg iter = %fs. finished iteration %d. bow = %fMB", Network::rank(), Network::GetHostName().c_str(), average, iter + 1, bytesOnWire);
+    //auto bytesOnWire = Network::GetGlobalNetworkTransferSize() / 1024.0 / 1024.0;
+
     if (snapshot_freq > 0 && (iter + 1) % snapshot_freq == 0)
     {
-      std::string snapshot_out = model_output_path + ".snapshot_iter_" + std::to_string(iter + 1);
-      SaveModelToFile(0, -1, snapshot_out.c_str());
+      float average = std::accumulate(spans.begin(), spans.end(), 0.0) / spans.size();
+      //std::string snapshot_out = model_output_path + ".snapshot_iter_" + std::to_string(iter + 1);
+      //SaveModelToFile(0, -1, snapshot_out.c_str());
+      fprintf(stderr, "[%d:%s] avg iter = %fs. finished iteration %d\n", Network::rank(), Network::GetHostName().c_str(), average, iter + 1);
     }
   }
 }
