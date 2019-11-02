@@ -322,7 +322,7 @@ std::vector<int8_t> SerialTreeLearner::GetUsedFeatures(bool is_tree_level) {
 
 void SerialTreeLearner::BeforeTrain() {
   // reset histogram pool
-  //EASY_FUNCTION(profiler::colors::BlueA700);
+  EASY_FUNCTION(profiler::colors::BlueA700);
   histogram_pool_.ResetMap();
 
   if (config_->feature_fraction < 1.0f) {

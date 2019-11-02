@@ -383,7 +383,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
 template <typename TREELEARNER_T>
 void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
 {
-  //EASY_FUNCTION(profiler::colors::Magenta);
+  EASY_FUNCTION(profiler::colors::Magenta);
   TREELEARNER_T::ConstructHistograms(this->is_feature_used_, true);
   // construct local histograms
   //I am skeptical whether OMP will help in this case.

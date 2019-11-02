@@ -352,7 +352,7 @@ void GBDT::Train(int snapshot_freq, const std::string &model_output_path)
     //auto totalComm = Network::GetNetworkTime(NetworkTimeType::EXCLUSIVESENDRECV);
     auto bytesOnWire = Network::GetGlobalNetworkTransferSize() / 1024.0 / 1024.0;
     float average = std::accumulate(spans.begin(), spans.end(), 0.0) / spans.size();
-    Log::Info("[%d:%s] avg iter = %fs. finished iteration %d. bow = %fMB", Network::rank(), Network::GetHostName().c_str(), average, iter + 1, bytesOnWire);
+    fprintf(stderr, "[%d:%s] avg iter = %fs. finished iteration %d. bow = %fMB", Network::rank(), Network::GetHostName().c_str(), average, iter + 1, bytesOnWire);
     if (snapshot_freq > 0 && (iter + 1) % snapshot_freq == 0)
     {
       std::string snapshot_out = model_output_path + ".snapshot_iter_" + std::to_string(iter + 1);

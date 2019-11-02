@@ -238,7 +238,7 @@ inline void PHubReducerForSyncUpGlobalBestSplit(char *src, char *dst)
 // To-do: reduce the communication cost by using bitset to communicate.
 inline void SyncUpGlobalBestSplit(char *input_buffer_, char *output_buffer_, SplitInfo *smaller_best_split, SplitInfo *larger_best_split, int max_cat_threshold, std::shared_ptr<PHub> pHub = nullptr)
 {
-  //EASY_FUNCTION(profiler::colors::Green);
+  EASY_FUNCTION(profiler::colors::Green);
   // sync global best info
   int size = SplitInfo::Size(max_cat_threshold);
   smaller_best_split->CopyTo(input_buffer_);
