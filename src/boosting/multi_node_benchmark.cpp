@@ -350,7 +350,7 @@ void MultiNodeBenchmark::Train(int snapshot_freq, const std::string &)
             float average = std::accumulate(spans.begin(), spans.end(), 0.0) / spans.size();
             //std::string snapshot_out = model_output_path + ".snapshot_iter_" + std::to_string(iter + 1);
             //SaveModelToFile(0, -1, snapshot_out.c_str());
-            fprintf(stderr, "[%d:%s] avg iter = %fs. finished iteration %d\n", Network::rank(), Network::GetHostName().c_str(), average, iter + 1);
+            fprintf(stderr, "benchmarked [%d:%s] avg iter = %fs. finished iteration %d\n", Network::rank(), Network::GetHostName().c_str(), average, iter + 1);
         }
     }
 }
