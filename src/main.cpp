@@ -5,11 +5,19 @@
 #include <LightGBM/application.h>
 #include <easy/profiler.h>
 #include <iostream>
+#include <thread>
+#include <chrono>
 
 int main(int argc, char **argv)
 {
   try
   {
+    auto launchWait = std::getenv("LAUNCH_WAIT");
+    if(launchWait != NULL)
+    {
+      ///activate launch wait 
+      std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+    }
     EASY_PROFILER_ENABLE;
     LightGBM::Application app(argc, argv);
     app.Run();
