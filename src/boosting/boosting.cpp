@@ -43,7 +43,7 @@ Boosting* Boosting::CreateBoosting(const std::string& type, const char* filename
       return new GOSS();
     } else if (type == std::string("rf")) {
       return new RF();
-    } else if(type  == "MultiNodeBenchmark")
+    } else if(type  == "multinodebenchmark")
     {
       return new MultiNodeBenchmark();
     } 
@@ -61,7 +61,7 @@ Boosting* Boosting::CreateBoosting(const std::string& type, const char* filename
         ret.reset(new GOSS());
       } else if (type == std::string("rf")) {
         return new RF();
-      } else if(type == "MultiNodeBenchmark") 
+      } else if(type == "multinodebenchmark") 
       {
         ret.reset(new MultiNodeBenchmark());
       }

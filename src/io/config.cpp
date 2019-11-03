@@ -64,9 +64,9 @@ void GetBoostingType(const std::unordered_map<std::string, std::string>& params,
     } else if (value == std::string("rf") || value == std::string("random_forest")) {
       *boosting = "rf";
     } 
-    else if(value == "MultiNodeBenchmark" || value == "benchmark")
+    else if(value == "multinodebenchmark" || value == "benchmark")
     {
-      *boosting = "MultiNodeBenchmark";
+      *boosting = "multinodebenchmark";
     }
     else {
       Log::Fatal("Unknown boosting type %s", value.c_str());
