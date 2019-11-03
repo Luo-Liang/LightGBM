@@ -8,65 +8,29 @@
 #include <math.h>
 
 #include "parallel_tree_learner.h"
+#include "benchmark_tree_learner.h"
 #include <LightGBM/utils/common.h>
 
 namespace LightGBM
 {
 
 template <typename TREELEARNER_T>
-DataParallelTreeLearner<TREELEARNER_T>::DataParallelTreeLearner(const Config *config)
+BenchmarkParallelTreeLearner<TREELEARNER_T>::BenchmarkParallelTreeLearner(const Config *config)
     : TREELEARNER_T(config)
 {
 }
 
 template <typename TREELEARNER_T>
-DataParallelTreeLearner<TREELEARNER_T>::~DataParallelTreeLearner()
+BenchmarkParallelTreeLearner<TREELEARNER_T>::~BenchmarkParallelTreeLearner()
 {
   pHubAllReduceT3->FastTerminate();
   pHubAllReduceSplitInfo->FastTerminate();
   pHubReduceScatter->FastTerminate();
 }
 
-/*  inline static void SumReducer(const char *src, char *dst, int type_size, comm_size_t len) {
-    comm_size_t used_size = 0;
-    const HistogramBinEntry* p1;
-    HistogramBinEntry* p2;
-    while (used_size < len) {
-      // convert
-      p1 = reinterpret_cast<const HistogramBinEntry*>(src);
-      p2 = reinterpret_cast<HistogramBinEntry*>(dst);
-      // add
-      p2->cnt += p1->cnt;
-      p2->sum_gradients += p1->sum_gradients;
-      p2->sum_hessians += p1->sum_hessians;
-      src += type_size;
-      dst += type_size;
-      used_size += type_size;
-    }
-  }
-
-
-  const char *src, char *dst, int type_size, comm_size_t len) {
-    comm_size_t used_size = 0;
-    const std::tuple<data_size_t, double, double> *p1;
-    std::tuple<data_size_t, double, double> *p2;
-    while (used_size < len)
-    {
-      p1 = reinterpret_cast<const std::tuple<data_size_t, double, double> *>(src);
-      p2 = reinterpret_cast<std::tuple<data_size_t, double, double> *>(dst);
-      std::get<0>(*p2) = std::get<0>(*p2) + std::get<0>(*p1);
-      std::get<1>(*p2) = std::get<1>(*p2) + std::get<1>(*p1);
-      std::get<2>(*p2) = std::get<2>(*p2) + std::get<2>(*p1);
-      src += type_size;
-      dst += type_size;
-      used_size += type_size;
-    }
-  }*/
-
-
 
 template <typename TREELEARNER_T>
-void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
+void BenchmarkParallelTreeLearner<TREELEARNER_T>::InitializePHub()
 {
   rank_ = Network::rank();
   num_machines_ = Network::num_machines();
@@ -75,7 +39,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
   auto chunkSize = atoi(pHubGetMandatoryEnvironmemtVariable("PHubChunkElementSize").c_str());
   pHubChunkSize = chunkSize;
   size_t numbin = RoundUp(this->train_data_->NumTotalBin(), chunkSize);
-  fprintf(stderr, "[%d] numbin = %d, adjusted = %d. chunk = %d\n", rank_, (int)this->train_data_->NumTotalBin(), (int)numbin, (int)chunkSize);
+  fprintf(stderr, "benchmarked [%d] numbin = %d, adjusted = %d. chunk = %d\n", rank_, (int)this->train_data_->NumTotalBin(), (int)numbin, (int)chunkSize);
   size_t buffer_size = numbin * sizeof(HistogramBinEntry);
   reduceScatterPerNodeBufferSize = buffer_size;
   auto total_buffer_size = buffer_size * num_machines_;
@@ -149,7 +113,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
 }
 
 template <typename TREELEARNER_T>
-void DataParallelTreeLearner<TREELEARNER_T>::Init(const Dataset *train_data, bool is_constant_hessian)
+void BenchmarkParallelTreeLearner<TREELEARNER_T>::Init(const Dataset *train_data, bool is_constant_hessian)
 {
   // initialize SerialTreeLearner
   TREELEARNER_T::Init(train_data, is_constant_hessian);
@@ -176,17 +140,17 @@ void DataParallelTreeLearner<TREELEARNER_T>::Init(const Dataset *train_data, boo
 }
 
 template <typename TREELEARNER_T>
-void DataParallelTreeLearner<TREELEARNER_T>::ResetConfig(const Config *config)
+void BenchmarkParallelTreeLearner<TREELEARNER_T>::ResetConfig(const Config *config)
 {
   TREELEARNER_T::ResetConfig(config);
   global_data_count_in_leaf_.resize(this->config_->num_leaves);
 }
 
 template <typename TREELEARNER_T>
-void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
+void BenchmarkParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
 {
   //EASY_FUNCTION(profiler::colors::Red50);
-  TREELEARNER_T::BeforeTrain();
+  //TREELEARNER_T::BeforeTrain();
   // generate feature partition for current tree
   std::vector<std::vector<int>> feature_distribution(num_machines_, std::vector<int>());
   std::vector<int> num_bins_distributed(num_machines_, 0);
@@ -288,32 +252,6 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
   // sync global data sumup info
   std::tuple<data_size_t, double, double> data(this->smaller_leaf_splits_->num_data_in_leaf(),
                                                this->smaller_leaf_splits_->sum_gradients(), this->smaller_leaf_splits_->sum_hessians());
-  //  int size = sizeof(data);
-  // auto data1 = data;
-  // std::memcpy(input_buffer_.data(), &data, size);
-  // Network::Allreduce(input_buffer_.data(), size, sizeof(std::tuple<data_size_t, double, double>), output_buffer_.data(), [](const char *src, char *dst, int type_size, comm_size_t len) {
-  //   comm_size_t used_size = 0;
-  //   const std::tuple<data_size_t, double, double> *p1;
-  //   std::tuple<data_size_t, double, double> *p2;
-  //   while (used_size < len)
-  //   {
-  //     p1 = reinterpret_cast<const std::tuple<data_size_t, double, double> *>(src);
-  //     p2 = reinterpret_cast<std::tuple<data_size_t, double, double> *>(dst);
-  //     fprintf(stderr, "[STD:%d.%d] %d, %f, %f + %d, %f, %f\n", Network::rank(), used_size, std::get<0>(*p2), std::get<1>(*p2), std::get<2>(*p2), std::get<0>(*p1), std::get<1>(*p1), std::get<2>(*p1));
-
-  //     std::get<0>(*p2) = std::get<0>(*p2) + std::get<0>(*p1);
-  //     std::get<1>(*p2) = std::get<1>(*p2) + std::get<1>(*p1);
-  //     std::get<2>(*p2) = std::get<2>(*p2) + std::get<2>(*p1);
-
-  //     fprintf(stderr, "   [STD:%d.%d] currsum = %d, %f, %f\n", Network::rank(), used_size, std::get<0>(*p2), std::get<1>(*p2), std::get<2>(*p2));
-
-  //     src += type_size;
-  //     dst += type_size;
-  //     used_size += type_size;
-  //   }
-  // });
-  // std::memcpy(reinterpret_cast<void *>(&data), output_buffer_.data(), size);
-
   //shadow operation. use this for correctness test.
   //change source direction.
   pHubAllReduceT3->ApplicationSuppliedAddrs.at(0) = &data;       //&data1;
@@ -323,9 +261,6 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
   EASY_BLOCK("T3 AllReduce");
   pHubAllReduceT3->Reduce();
   EASY_END_BLOCK;
-  //PHUB_CHECK(std::get<0>(data1) == std::get<0>(data)) << std::get<0>(data1) << " vs " << std::get<0>(data);
-  //PHUB_CHECK_VERY_CLOSE((double)std::get<1>(data1), (double)std::get<1>(data)) << std::get<1>(data1) << " vs " << std::get<1>(data);
-  //PHUB_CHECK_VERY_CLOSE((double)std::get<2>(data1), (double)std::get<2>(data)) << std::get<2>(data1) << " vs " << std::get<2>(data);
 
   // set global sumup info
   this->smaller_leaf_splits_->Init(std::get<1>(data), std::get<2>(data));
@@ -334,10 +269,10 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
 }
 
 template <typename TREELEARNER_T>
-void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
+void BenchmarkParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
 {
   EASY_FUNCTION(profiler::colors::Magenta);
-  TREELEARNER_T::ConstructHistograms(this->is_feature_used_, true);
+  //TREELEARNER_T::ConstructHistograms(this->is_feature_used_, true);
   // construct local histograms
   //I am skeptical whether OMP will help in this case.
   //#pragma omp parallel for schedule(static)
@@ -468,106 +403,22 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
 }
 
 template <typename TREELEARNER_T>
-void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplitsFromHistograms(const std::vector<int8_t> &, bool)
+void BenchmarkParallelTreeLearner<TREELEARNER_T>::FindBestSplitsFromHistograms(const std::vector<int8_t> &, bool)
 {
-  std::vector<SplitInfo> smaller_bests_per_thread(this->num_threads_, SplitInfo());
-  std::vector<SplitInfo> larger_bests_per_thread(this->num_threads_, SplitInfo());
-  std::vector<int8_t> smaller_node_used_features(this->num_features_, 1);
-  std::vector<int8_t> larger_node_used_features(this->num_features_, 1);
-  if (this->config_->feature_fraction_bynode < 1.0f)
-  {
-    smaller_node_used_features = this->GetUsedFeatures(false);
-    larger_node_used_features = this->GetUsedFeatures(false);
-  }
-  OMP_INIT_EX();
-#pragma omp parallel for schedule(static)
-  for (int feature_index = 0; feature_index < this->num_features_; ++feature_index)
-  {
-    OMP_LOOP_EX_BEGIN();
-    if (!is_feature_aggregated_[feature_index])
-      continue;
-    const int tid = omp_get_thread_num();
-    const int real_feature_index = this->train_data_->RealFeatureIndex(feature_index);
-    // restore global histograms from buffer
-    this->smaller_leaf_histogram_array_[feature_index].FromMemory(
-        output_buffer_.data() + buffer_read_start_pos_[feature_index]);
-
-    this->train_data_->FixHistogram(feature_index,
-                                    this->smaller_leaf_splits_->sum_gradients(), this->smaller_leaf_splits_->sum_hessians(),
-                                    GetGlobalDataCountInLeaf(this->smaller_leaf_splits_->LeafIndex()),
-                                    this->smaller_leaf_histogram_array_[feature_index].RawData());
-    SplitInfo smaller_split;
-    // find best threshold for smaller child
-    this->smaller_leaf_histogram_array_[feature_index].FindBestThreshold(
-        this->smaller_leaf_splits_->sum_gradients(),
-        this->smaller_leaf_splits_->sum_hessians(),
-        GetGlobalDataCountInLeaf(this->smaller_leaf_splits_->LeafIndex()),
-        this->smaller_leaf_splits_->min_constraint(),
-        this->smaller_leaf_splits_->max_constraint(),
-        &smaller_split);
-    smaller_split.feature = real_feature_index;
-    if (smaller_split > smaller_bests_per_thread[tid] && smaller_node_used_features[feature_index])
-    {
-      smaller_bests_per_thread[tid] = smaller_split;
-    }
-
-    // only root leaf
-    if (this->larger_leaf_splits_ == nullptr || this->larger_leaf_splits_->LeafIndex() < 0)
-      continue;
-
-    // construct histgroms for large leaf, we init larger leaf as the parent, so we can just subtract the smaller leaf's histograms
-    this->larger_leaf_histogram_array_[feature_index].Subtract(
-        this->smaller_leaf_histogram_array_[feature_index]);
-    SplitInfo larger_split;
-    // find best threshold for larger child
-    this->larger_leaf_histogram_array_[feature_index].FindBestThreshold(
-        this->larger_leaf_splits_->sum_gradients(),
-        this->larger_leaf_splits_->sum_hessians(),
-        GetGlobalDataCountInLeaf(this->larger_leaf_splits_->LeafIndex()),
-        this->larger_leaf_splits_->min_constraint(),
-        this->larger_leaf_splits_->max_constraint(),
-        &larger_split);
-    larger_split.feature = real_feature_index;
-    if (larger_split > larger_bests_per_thread[tid] && larger_node_used_features[feature_index])
-    {
-      larger_bests_per_thread[tid] = larger_split;
-    }
-    OMP_LOOP_EX_END();
-  }
-  OMP_THROW_EX();
-
-  auto smaller_best_idx = ArrayArgs<SplitInfo>::ArgMax(smaller_bests_per_thread);
-  int leaf = this->smaller_leaf_splits_->LeafIndex();
-  this->best_split_per_leaf_[leaf] = smaller_bests_per_thread[smaller_best_idx];
-
-  if (this->larger_leaf_splits_ != nullptr && this->larger_leaf_splits_->LeafIndex() >= 0)
-  {
-    leaf = this->larger_leaf_splits_->LeafIndex();
-    auto larger_best_idx = ArrayArgs<SplitInfo>::ArgMax(larger_bests_per_thread);
-    this->best_split_per_leaf_[leaf] = larger_bests_per_thread[larger_best_idx];
-  }
-
   SplitInfo smaller_best_split, larger_best_split;
-  smaller_best_split = this->best_split_per_leaf_[this->smaller_leaf_splits_->LeafIndex()];
+  smaller_best_split = this->best_split_per_leaf_.at(this->smaller_leaf_splits_->LeafIndex());
   // find local best split for larger leaf
   if (this->larger_leaf_splits_->LeafIndex() >= 0)
   {
-    larger_best_split = this->best_split_per_leaf_[this->larger_leaf_splits_->LeafIndex()];
+    larger_best_split = this->best_split_per_leaf_.at(this->larger_leaf_splits_->LeafIndex());
   }
-
+  //all ignored.
   // sync global best info
   SyncUpGlobalBestSplit(input_buffer_.data(), input_buffer_.data(), &smaller_best_split, &larger_best_split, this->config_->max_cat_threshold, pHubAllReduceSplitInfo);
-
-  // set best split
-  this->best_split_per_leaf_[this->smaller_leaf_splits_->LeafIndex()] = smaller_best_split;
-  if (this->larger_leaf_splits_->LeafIndex() >= 0)
-  {
-    this->best_split_per_leaf_[this->larger_leaf_splits_->LeafIndex()] = larger_best_split;
-  }
 }
 
 template <typename TREELEARNER_T>
-void DataParallelTreeLearner<TREELEARNER_T>::Split(Tree *tree, int best_Leaf, int *left_leaf, int *right_leaf)
+void BenchmarkParallelTreeLearner<TREELEARNER_T>::Split(Tree *tree, int best_Leaf, int *left_leaf, int *right_leaf)
 {
   TREELEARNER_T::Split(tree, best_Leaf, left_leaf, right_leaf);
   const SplitInfo &best_split_info = this->best_split_per_leaf_[best_Leaf];
@@ -577,7 +428,6 @@ void DataParallelTreeLearner<TREELEARNER_T>::Split(Tree *tree, int best_Leaf, in
 }
 
 // instantiate template classes, otherwise linker cannot find the code
-template class DataParallelTreeLearner<GPUTreeLearner>;
-template class DataParallelTreeLearner<SerialTreeLearner>;
+template class BenchmarkParallelTreeLearner<BenchmarkTreeLearner>;
 
 } // namespace LightGBM

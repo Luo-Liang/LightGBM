@@ -7,6 +7,7 @@
 #include "gpu_tree_learner.h"
 #include "parallel_tree_learner.h"
 #include "serial_tree_learner.h"
+#include "benchmark_tree_learner.h"
 
 namespace LightGBM {
 
@@ -20,6 +21,10 @@ TreeLearner* TreeLearner::CreateTreeLearner(const std::string& learner_type, con
       return new DataParallelTreeLearner<SerialTreeLearner>(config);
     } else if (learner_type == std::string("voting")) {
       return new VotingParallelTreeLearner<SerialTreeLearner>(config);
+    }
+    else if(learner_type == "benchmark")
+    {
+      return new BenchmarkParallelTreeLearner<BenchmarkTreeLearner>(config);
     }
   } else if (device_type == std::string("gpu")) {
     if (learner_type == std::string("serial")) {

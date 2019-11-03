@@ -8,6 +8,7 @@
 #include "gbdt.h"
 #include "goss.hpp"
 #include "rf.hpp"
+#include "multi_node_benchmark.h"
 
 namespace LightGBM {
 
@@ -42,7 +43,11 @@ Boosting* Boosting::CreateBoosting(const std::string& type, const char* filename
       return new GOSS();
     } else if (type == std::string("rf")) {
       return new RF();
-    } else {
+    } else if(type  == "MultiNodeBenchmark")
+    {
+      return new MultiNodeBenchmark();
+    } 
+    else {
       return nullptr;
     }
   } else {
@@ -56,7 +61,11 @@ Boosting* Boosting::CreateBoosting(const std::string& type, const char* filename
         ret.reset(new GOSS());
       } else if (type == std::string("rf")) {
         return new RF();
-      } else {
+      } else if(type == "MultiNodeBenchmark") 
+      {
+        ret.reset(new MultiNodeBenchmark());
+      }
+      else {
         Log::Fatal("Unknown boosting type %s", type.c_str());
       }
       LoadFileToBoosting(ret.get(), filename);

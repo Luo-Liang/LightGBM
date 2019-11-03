@@ -128,6 +128,85 @@ private:
 };
 
 /*!
+* \brief Data parallel learning algorithm.
+*        Workers use local data to construct histograms locally, then sync up global histograms.
+*        It is recommonded used when #data is large or #feature is small
+*/
+template <typename TREELEARNER_T>
+class BenchmarkParallelTreeLearner : public TREELEARNER_T
+{
+public:
+  explicit BenchmarkParallelTreeLearner(const Config *config);
+  ~BenchmarkParallelTreeLearner();
+  void Init(const Dataset *train_data, bool is_constant_hessian) override;
+  void ResetConfig(const Config *config) override;
+
+protected:
+  void InitializePHub();
+  void BeforeTrain() override;
+  void FindBestSplits() override;
+  void FindBestSplitsFromHistograms(const std::vector<int8_t> &is_feature_used, bool use_subtract) override;
+  void Split(Tree *tree, int best_Leaf, int *left_leaf, int *right_leaf) override;
+
+  inline data_size_t GetGlobalDataCountInLeaf(int leaf_idx) const override
+  {
+    if (leaf_idx >= 0)
+    {
+      return global_data_count_in_leaf_[leaf_idx];
+    }
+    else
+    {
+      return 0;
+    }
+  }
+
+private:
+  std::vector<char> pHubBackingBufferForReduceScatter;
+  std::vector<char> pHubBackingBufferForAllReduceT3;
+  std::vector<char> pHubBackingBufferForAllReduceSplitInfo;
+
+  std::vector<int> reduceScatterInnerFid2NodeMapping;
+  std::vector<std::unique_ptr<std::atomic<int>>> reduceScatterNodeByteCounters;
+  std::vector<void *> reduceScatterNodeStartingAddress;
+  std::vector<PLinkKey> reduceScatterNodeStartingKey;
+
+  std::vector<int> reduceScatterBlockLenAccSum;
+
+  int reduceScatterPerNodeBufferSize = 0;
+  int pHubReduceScatterPerNodeKeyCount = 0;
+  int pHubAllReducePerNodeKeyCount = 0;
+  int pHubChunkSize = 0;
+
+  std::shared_ptr<PHub> pHubReduceScatter = nullptr;
+  std::shared_ptr<PHub> pHubAllReduceT3 = nullptr;
+  std::shared_ptr<PHub> pHubAllReduceSplitInfo = nullptr;
+
+  /*! \brief Rank of local machine */
+  int rank_;
+  /*! \brief Number of machines of this parallel task */
+  int num_machines_;
+  /*! \brief Buffer for network send */
+  std::vector<char> input_buffer_;
+  /*! \brief Buffer for network receive */
+  std::vector<char> output_buffer_;
+  /*! \brief different machines will aggregate histograms for different features,
+       use this to mark local aggregate features*/
+  std::vector<bool> is_feature_aggregated_;
+  /*! \brief Block start index for reduce scatter */
+  std::vector<comm_size_t> block_start_;
+  /*! \brief Block size for reduce scatter */
+  std::vector<comm_size_t> block_len_;
+  /*! \brief Write positions for feature histograms */
+  std::vector<comm_size_t> buffer_write_start_pos_;
+  /*! \brief Read positions for local feature histograms */
+  std::vector<comm_size_t> buffer_read_start_pos_;
+  /*! \brief Size for reduce scatter */
+  comm_size_t reduce_scatter_size_;
+  /*! \brief Store global number of data in leaves  */
+  std::vector<data_size_t> global_data_count_in_leaf_;
+};
+
+/*!
 * \brief Voting based data parallel learning algorithm.
 * Like data parallel, but not aggregate histograms for all features.
 * Here using voting to reduce features, and only aggregate histograms for selected features.
@@ -235,6 +314,38 @@ inline void PHubReducerForSyncUpGlobalBestSplit(char *src, char *dst)
   }
 }
 
+inline void PHubTuple3Reducer(char *src, char *dst)
+{
+  std::tuple<data_size_t, double, double> *src_t = (std::tuple<data_size_t, double, double> *)(src);
+  std::tuple<data_size_t, double, double> *dst_t = (std::tuple<data_size_t, double, double> *)(dst);
+  //fprintf(stderr, "[PHUB:%d] %d, %f, %f + %d, %f, %f\n", Network::rank(), std::get<0>(*dst_t), std::get<1>(*dst_t), std::get<2>(*dst_t), std::get<0>(*src_t), std::get<1>(*src_t), std::get<2>(*src_t));
+  std::get<0>(*dst_t) += std::get<0>(*src_t);
+  std::get<1>(*dst_t) += std::get<1>(*src_t);
+  std::get<2>(*dst_t) += std::get<2>(*src_t);
+  //fprintf(stderr, "   [PHUB:%d] currsum = %d, %f, %f\n", Network::rank(), std::get<0>(*dst_t), std::get<1>(*dst_t), std::get<2>(*dst_t));
+}
+
+inline void PHubHistogramBinEntrySumReducer(char *src, char *dst)
+{
+  //static std::atomic<int> idx = {0};
+  HistogramBinEntry *source = (HistogramBinEntry *)src;
+  HistogramBinEntry *dest = (HistogramBinEntry *)dst;
+  //if (idx == 0)
+  {
+    //fprintf(stderr, "PHUB:[%d][dst = %p] src->cnt = %d, src->sum_g = %f, src->sum_h = %f, dst->cnt = %d, dst->sum_g = %f, dst->sum_h = %f\n", Network::rank(), dst, source->cnt, source->sum_gradients, source->sum_hessians, dest->cnt, dest->sum_gradients, dest->sum_hessians);
+  }
+  //it will be called repeatedly as more data is streamed to PHub
+  dest->cnt += source->cnt;
+  dest->sum_gradients += source->sum_gradients;
+  dest->sum_hessians += source->sum_hessians;
+  //if (idx == 0)
+  {
+    //fprintf(stderr, "PHUB:[%d][dst = %p]         dst->cnt = %d, dst->sum_g = %f, dst->sum_h = %f\n", Network::rank(), dst, dest->cnt, dest->sum_gradients, dest->sum_hessians);
+  }
+  //idx++;
+}
+
+
 // To-do: reduce the communication cost by using bitset to communicate.
 inline void SyncUpGlobalBestSplit(char *input_buffer_, char *output_buffer_, SplitInfo *smaller_best_split, SplitInfo *larger_best_split, int max_cat_threshold, std::shared_ptr<PHub> pHub = nullptr)
 {
@@ -280,6 +391,25 @@ inline void SyncUpGlobalBestSplit(char *input_buffer_, char *output_buffer_, Spl
   // copy back
   smaller_best_split->CopyFrom(output_buffer_);
   larger_best_split->CopyFrom(output_buffer_ + size);
+}
+
+
+inline std::string getKeyOwnershipString(int numMachines, int keysPerMachine)
+{
+  std::string ret = "[";
+  for (int m = 0; m < numMachines; m++)
+  {
+    for (int i = 0; i < keysPerMachine; i++)
+    {
+      ret.append(std::to_string(m));
+      if (m != numMachines - 1 || i != keysPerMachine - 1)
+      {
+        ret.append(",");
+      }
+    }
+  }
+  ret.append("]");
+  return ret;
 }
 
 } // namespace LightGBM

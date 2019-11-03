@@ -333,7 +333,7 @@ void GBDT::Bagging(int iter)
   }
 }
 
-void GBDT::Train(int snapshot_freq, const std::string &model_output_path)
+void GBDT::Train(int snapshot_freq, const std::string &)
 {
   bool is_finished = false;
   std::vector<double> spans;
