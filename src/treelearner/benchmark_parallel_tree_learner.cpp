@@ -409,12 +409,13 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::FindBestSplitsFromHistograms(c
 {
   fprintf(stderr, "[%d]benchmarked tree learner . FindBestSplitsFromHistograms\n", Network::rank());
   SplitInfo smaller_best_split, larger_best_split;
-  smaller_best_split = this->best_split_per_leaf_.at(this->smaller_leaf_splits_->LeafIndex());
+  smaller_best_split = SplitInfo();
   // find local best split for larger leaf
   if (this->larger_leaf_splits_->LeafIndex() >= 0)
   {
     larger_best_split = this->best_split_per_leaf_.at(this->larger_leaf_splits_->LeafIndex());
   }
+  fprintf(stderr, "[%d]benchmarked tree learner . FindBestSplitsFromHistograms.418\n", Network::rank());
   //all ignored.
   // sync global best info
   SyncUpGlobalBestSplit(input_buffer_.data(), input_buffer_.data(), &smaller_best_split, &larger_best_split, this->config_->max_cat_threshold, pHubAllReduceSplitInfo);
