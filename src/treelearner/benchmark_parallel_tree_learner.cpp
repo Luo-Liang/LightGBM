@@ -135,7 +135,11 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::Init(const Dataset *train_data
   buffer_read_start_pos_.resize(this->num_features_);
   global_data_count_in_leaf_.resize(this->config_->num_leaves);
 
-  InitializePHub();
+  auto commBackend = std::string(std::getenv("BENCHMARK_PREFERRED_BACKEND") == nullptr ? "" : std::getenv("BENCHMARK_PREFERRED_BACKEND"));
+  if (commBackend == "" || commBackend == "PHUB")
+  {
+    InitializePHub();
+  }
 
   //reset real impl to use same size as PHub
   input_buffer_.resize(pHubBackingBufferForReduceScatter.size());
@@ -151,7 +155,6 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::Init(const Dataset *train_data
   }
 
   //get communication backend.
-  auto commBackend = std::string(std::getenv("BENCHMARK_PREFERRED_BACKEND") == nullptr ? "" : std::getenv("BENCHMARK_PREFERRED_BACKEND"));
   if (commBackend == "" || commBackend == "DEFAULT")
   {
     benchmarkCommBackend = BenchmarkPreferredBackend::DEFAULT;
