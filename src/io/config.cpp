@@ -10,213 +10,316 @@
 
 #include <limits>
 
-namespace LightGBM {
+namespace LightGBM
+{
 
 std::mutex Config::initLock;
 std::vector<PreferredCollectives> Config::CollectivePreference;
 
-void Config::KV2Map(std::unordered_map<std::string, std::string>* params, const char* kv) {
+void Config::KV2Map(std::unordered_map<std::string, std::string> *params, const char *kv)
+{
   std::vector<std::string> tmp_strs = Common::Split(kv, '=');
-  if (tmp_strs.size() == 2 || tmp_strs.size() == 1) {
+  if (tmp_strs.size() == 2 || tmp_strs.size() == 1)
+  {
     std::string key = Common::RemoveQuotationSymbol(Common::Trim(tmp_strs[0]));
     std::string value = "";
-    if (tmp_strs.size() == 2) {
+    if (tmp_strs.size() == 2)
+    {
       value = Common::RemoveQuotationSymbol(Common::Trim(tmp_strs[1]));
     }
-    if (!Common::CheckASCII(key) || !Common::CheckASCII(value)) {
+    if (!Common::CheckASCII(key) || !Common::CheckASCII(value))
+    {
       Log::Fatal("Do not support non-ascii characters in config.");
     }
-    if (key.size() > 0) {
+    if (key.size() > 0)
+    {
       auto value_search = params->find(key);
-      if (value_search == params->end()) {  // not set
+      if (value_search == params->end())
+      { // not set
         params->emplace(key, value);
-      } else {
+      }
+      else
+      {
         Log::Warning("%s is set=%s, %s=%s will be ignored. Current value: %s=%s",
-          key.c_str(), value_search->second.c_str(), key.c_str(), value.c_str(),
-          key.c_str(), value_search->second.c_str());
+                     key.c_str(), value_search->second.c_str(), key.c_str(), value.c_str(),
+                     key.c_str(), value_search->second.c_str());
       }
     }
-  } else {
+  }
+  else
+  {
     Log::Warning("Unknown parameter %s", kv);
   }
 }
 
-std::unordered_map<std::string, std::string> Config::Str2Map(const char* parameters) {
+std::unordered_map<std::string, std::string> Config::Str2Map(const char *parameters)
+{
   std::unordered_map<std::string, std::string> params;
   auto args = Common::Split(parameters, " \t\n\r");
-  for (auto arg : args) {
+  for (auto arg : args)
+  {
     KV2Map(&params, Common::Trim(arg).c_str());
   }
   ParameterAlias::KeyAliasTransform(&params);
   return params;
 }
 
-void GetBoostingType(const std::unordered_map<std::string, std::string>& params, std::string* boosting) {
+void GetBoostingType(const std::unordered_map<std::string, std::string> &params, std::string *boosting)
+{
   std::string value;
-  if (Config::GetString(params, "boosting", &value)) {
+  if (Config::GetString(params, "boosting", &value))
+  {
     std::transform(value.begin(), value.end(), value.begin(), Common::tolower);
-    if (value == std::string("gbdt") || value == std::string("gbrt")) {
+    if (value == std::string("gbdt") || value == std::string("gbrt"))
+    {
       *boosting = "gbdt";
-    } else if (value == std::string("dart")) {
+    }
+    else if (value == std::string("dart"))
+    {
       *boosting = "dart";
-    } else if (value == std::string("goss")) {
+    }
+    else if (value == std::string("goss"))
+    {
       *boosting = "goss";
-    } else if (value == std::string("rf") || value == std::string("random_forest")) {
+    }
+    else if (value == std::string("rf") || value == std::string("random_forest"))
+    {
       *boosting = "rf";
-    } 
-    else if(value == "multinodebenchmark" || value == "benchmark")
+    }
+    else if (value == "multinodebenchmark" || value == "benchmark")
     {
       *boosting = "multinodebenchmark";
     }
-    else {
+    else
+    {
       Log::Fatal("Unknown boosting type %s", value.c_str());
     }
   }
 }
 
-std::string ParseObjectiveAlias(const std::string& type) {
-  if (type == std::string("regression") || type == std::string("regression_l2")
-    || type == std::string("mean_squared_error") || type == std::string("mse") || type == std::string("l2")
-    || type == std::string("l2_root") || type == std::string("root_mean_squared_error") || type == std::string("rmse")) {
+std::string ParseObjectiveAlias(const std::string &type)
+{
+  if (type == std::string("regression") || type == std::string("regression_l2") || type == std::string("mean_squared_error") || type == std::string("mse") || type == std::string("l2") || type == std::string("l2_root") || type == std::string("root_mean_squared_error") || type == std::string("rmse"))
+  {
     return "regression";
-  } else if (type == std::string("regression_l1") || type == std::string("mean_absolute_error")
-    || type == std::string("l1") || type == std::string("mae")) {
+  }
+  else if (type == std::string("regression_l1") || type == std::string("mean_absolute_error") || type == std::string("l1") || type == std::string("mae"))
+  {
     return "regression_l1";
-  } else if (type == std::string("multiclass") || type == std::string("softmax")) {
+  }
+  else if (type == std::string("multiclass") || type == std::string("softmax"))
+  {
     return "multiclass";
-  } else if (type == std::string("multiclassova") || type == std::string("multiclass_ova") || type == std::string("ova") || type == std::string("ovr")) {
+  }
+  else if (type == std::string("multiclassova") || type == std::string("multiclass_ova") || type == std::string("ova") || type == std::string("ovr"))
+  {
     return "multiclassova";
-  } else if (type == std::string("xentropy") || type == std::string("cross_entropy")) {
+  }
+  else if (type == std::string("xentropy") || type == std::string("cross_entropy"))
+  {
     return "cross_entropy";
-  } else if (type == std::string("xentlambda") || type == std::string("cross_entropy_lambda")) {
+  }
+  else if (type == std::string("xentlambda") || type == std::string("cross_entropy_lambda"))
+  {
     return "cross_entropy_lambda";
-  } else if (type == std::string("mean_absolute_percentage_error") || type == std::string("mape")) {
+  }
+  else if (type == std::string("mean_absolute_percentage_error") || type == std::string("mape"))
+  {
     return "mape";
-  } else if (type == std::string("none") || type == std::string("null") || type == std::string("custom") || type == std::string("na")) {
+  }
+  else if (type == std::string("none") || type == std::string("null") || type == std::string("custom") || type == std::string("na"))
+  {
     return "custom";
   }
   return type;
 }
 
-std::string ParseMetricAlias(const std::string& type) {
-  if (type == std::string("regression") || type == std::string("regression_l2") || type == std::string("l2") || type == std::string("mean_squared_error") || type == std::string("mse")) {
+std::string ParseMetricAlias(const std::string &type)
+{
+  if (type == std::string("regression") || type == std::string("regression_l2") || type == std::string("l2") || type == std::string("mean_squared_error") || type == std::string("mse"))
+  {
     return "l2";
-  } else if (type == std::string("l2_root") || type == std::string("root_mean_squared_error") || type == std::string("rmse")) {
+  }
+  else if (type == std::string("l2_root") || type == std::string("root_mean_squared_error") || type == std::string("rmse"))
+  {
     return "rmse";
-  } else if (type == std::string("regression_l1") || type == std::string("l1") || type == std::string("mean_absolute_error") || type == std::string("mae")) {
+  }
+  else if (type == std::string("regression_l1") || type == std::string("l1") || type == std::string("mean_absolute_error") || type == std::string("mae"))
+  {
     return "l1";
-  } else if (type == std::string("binary_logloss") || type == std::string("binary")) {
+  }
+  else if (type == std::string("binary_logloss") || type == std::string("binary"))
+  {
     return "binary_logloss";
-  } else if (type == std::string("ndcg") || type == std::string("lambdarank")) {
+  }
+  else if (type == std::string("ndcg") || type == std::string("lambdarank"))
+  {
     return "ndcg";
-  } else if (type == std::string("map") || type == std::string("mean_average_precision")) {
+  }
+  else if (type == std::string("map") || type == std::string("mean_average_precision"))
+  {
     return "map";
-  } else if (type == std::string("multi_logloss") || type == std::string("multiclass") || type == std::string("softmax") || type == std::string("multiclassova") || type == std::string("multiclass_ova") || type == std::string("ova") || type == std::string("ovr")) {
+  }
+  else if (type == std::string("multi_logloss") || type == std::string("multiclass") || type == std::string("softmax") || type == std::string("multiclassova") || type == std::string("multiclass_ova") || type == std::string("ova") || type == std::string("ovr"))
+  {
     return "multi_logloss";
-  } else if (type == std::string("xentropy") || type == std::string("cross_entropy")) {
+  }
+  else if (type == std::string("xentropy") || type == std::string("cross_entropy"))
+  {
     return "cross_entropy";
-  } else if (type == std::string("xentlambda") || type == std::string("cross_entropy_lambda")) {
+  }
+  else if (type == std::string("xentlambda") || type == std::string("cross_entropy_lambda"))
+  {
     return "cross_entropy_lambda";
-  } else if (type == std::string("kldiv") || type == std::string("kullback_leibler")) {
+  }
+  else if (type == std::string("kldiv") || type == std::string("kullback_leibler"))
+  {
     return "kullback_leibler";
-  } else if (type == std::string("mean_absolute_percentage_error") || type == std::string("mape")) {
+  }
+  else if (type == std::string("mean_absolute_percentage_error") || type == std::string("mape"))
+  {
     return "mape";
-  } else if (type == std::string("none") || type == std::string("null") || type == std::string("custom") || type == std::string("na")) {
+  }
+  else if (type == std::string("none") || type == std::string("null") || type == std::string("custom") || type == std::string("na"))
+  {
     return "custom";
   }
   return type;
 }
 
-void ParseMetrics(const std::string& value, std::vector<std::string>* out_metric) {
+void ParseMetrics(const std::string &value, std::vector<std::string> *out_metric)
+{
   std::unordered_set<std::string> metric_sets;
   out_metric->clear();
   std::vector<std::string> metrics = Common::Split(value.c_str(), ',');
-  for (auto& met : metrics) {
+  for (auto &met : metrics)
+  {
     auto type = ParseMetricAlias(met);
-    if (metric_sets.count(type) <= 0) {
+    if (metric_sets.count(type) <= 0)
+    {
       out_metric->push_back(type);
       metric_sets.insert(type);
     }
   }
 }
 
-void GetObjectiveType(const std::unordered_map<std::string, std::string>& params, std::string* objective) {
+void GetObjectiveType(const std::unordered_map<std::string, std::string> &params, std::string *objective)
+{
   std::string value;
-  if (Config::GetString(params, "objective", &value)) {
+  if (Config::GetString(params, "objective", &value))
+  {
     std::transform(value.begin(), value.end(), value.begin(), Common::tolower);
     *objective = ParseObjectiveAlias(value);
   }
 }
 
-void GetMetricType(const std::unordered_map<std::string, std::string>& params, std::vector<std::string>* metric) {
+void GetMetricType(const std::unordered_map<std::string, std::string> &params, std::vector<std::string> *metric)
+{
   std::string value;
-  if (Config::GetString(params, "metric", &value)) {
+  if (Config::GetString(params, "metric", &value))
+  {
     std::transform(value.begin(), value.end(), value.begin(), Common::tolower);
     ParseMetrics(value, metric);
   }
   // add names of objective function if not providing metric
-  if (metric->empty() && value.size() == 0) {
-    if (Config::GetString(params, "objective", &value)) {
+  if (metric->empty() && value.size() == 0)
+  {
+    if (Config::GetString(params, "objective", &value))
+    {
       std::transform(value.begin(), value.end(), value.begin(), Common::tolower);
       ParseMetrics(value, metric);
     }
   }
 }
 
-void GetTaskType(const std::unordered_map<std::string, std::string>& params, TaskType* task) {
+void GetTaskType(const std::unordered_map<std::string, std::string> &params, TaskType *task)
+{
   std::string value;
-  if (Config::GetString(params, "task", &value)) {
+  if (Config::GetString(params, "task", &value))
+  {
     std::transform(value.begin(), value.end(), value.begin(), Common::tolower);
-    if (value == std::string("train") || value == std::string("training")) {
+    if (value == std::string("train") || value == std::string("training"))
+    {
       *task = TaskType::kTrain;
-    } else if (value == std::string("predict") || value == std::string("prediction")
-               || value == std::string("test")) {
+    }
+    else if (value == std::string("predict") || value == std::string("prediction") || value == std::string("test"))
+    {
       *task = TaskType::kPredict;
-    } else if (value == std::string("convert_model")) {
+    }
+    else if (value == std::string("convert_model"))
+    {
       *task = TaskType::kConvertModel;
-    } else if (value == std::string("refit") || value == std::string("refit_tree")) {
+    }
+    else if (value == std::string("refit") || value == std::string("refit_tree"))
+    {
       *task = TaskType::KRefitTree;
-    } else {
+    }
+    else
+    {
       Log::Fatal("Unknown task type %s", value.c_str());
     }
   }
 }
 
-void GetDeviceType(const std::unordered_map<std::string, std::string>& params, std::string* device_type) {
+void GetDeviceType(const std::unordered_map<std::string, std::string> &params, std::string *device_type)
+{
   std::string value;
-  if (Config::GetString(params, "device_type", &value)) {
+  if (Config::GetString(params, "device_type", &value))
+  {
     std::transform(value.begin(), value.end(), value.begin(), Common::tolower);
-    if (value == std::string("cpu")) {
+    if (value == std::string("cpu"))
+    {
       *device_type = "cpu";
-    } else if (value == std::string("gpu")) {
+    }
+    else if (value == std::string("gpu"))
+    {
       *device_type = "gpu";
-    } else {
+    }
+    else
+    {
       Log::Fatal("Unknown device type %s", value.c_str());
     }
   }
 }
 
-void GetTreeLearnerType(const std::unordered_map<std::string, std::string>& params, std::string* tree_learner) {
+void GetTreeLearnerType(const std::unordered_map<std::string, std::string> &params, std::string *tree_learner)
+{
   std::string value;
-  if (Config::GetString(params, "tree_learner", &value)) {
+  if (Config::GetString(params, "tree_learner", &value))
+  {
     std::transform(value.begin(), value.end(), value.begin(), Common::tolower);
-    if (value == std::string("serial")) {
+    if (value == std::string("serial"))
+    {
       *tree_learner = "serial";
-    } else if (value == std::string("feature") || value == std::string("feature_parallel")) {
+    }
+    else if (value == std::string("feature") || value == std::string("feature_parallel"))
+    {
       *tree_learner = "feature";
-    } else if (value == std::string("data") || value == std::string("data_parallel")) {
+    }
+    else if (value == std::string("data") || value == std::string("data_parallel"))
+    {
       *tree_learner = "data";
-    } else if (value == std::string("voting") || value == std::string("voting_parallel")) {
+    }
+    else if (value == std::string("voting") || value == std::string("voting_parallel"))
+    {
       *tree_learner = "voting";
-    } else {
+    }
+    else if (value == std::string("benchmark"))
+    {
+      *tree_learner = "benchmark";
+    }
+    else
+    {
       Log::Fatal("Unknown tree learner type %s", value.c_str());
     }
   }
 }
 
-void Config::Set(const std::unordered_map<std::string, std::string>& params) {
+void Config::Set(const std::unordered_map<std::string, std::string> &params)
+{
   // generate seeds by seed.
-  if (GetInt(params, "seed", &seed)) {
+  if (GetInt(params, "seed", &seed))
+  {
     Random rand(seed);
     int int_max = std::numeric_limits<int16_t>::max();
     data_random_seed = static_cast<int>(rand.NextShort(0, int_max));
@@ -237,7 +340,8 @@ void Config::Set(const std::unordered_map<std::string, std::string>& params) {
   // sort eval_at
   std::sort(eval_at.begin(), eval_at.end());
 
-  if (valid_data_initscores.size() == 0 && valid.size() > 0) {
+  if (valid_data_initscores.size() == 0 && valid.size() > 0)
+  {
     valid_data_initscores = std::vector<std::string>(valid.size(), "");
   }
   CHECK(valid.size() == valid_data_initscores.size());
@@ -245,67 +349,85 @@ void Config::Set(const std::unordered_map<std::string, std::string>& params) {
   // check for conflicts
   CheckParamConflict();
 
-  if (verbosity == 1) {
+  if (verbosity == 1)
+  {
     LightGBM::Log::ResetLogLevel(LightGBM::LogLevel::Info);
-  } else if (verbosity == 0) {
+  }
+  else if (verbosity == 0)
+  {
     LightGBM::Log::ResetLogLevel(LightGBM::LogLevel::Warning);
-  } else if (verbosity >= 2) {
+  }
+  else if (verbosity >= 2)
+  {
     LightGBM::Log::ResetLogLevel(LightGBM::LogLevel::Debug);
-  } else {
+  }
+  else
+  {
     LightGBM::Log::ResetLogLevel(LightGBM::LogLevel::Fatal);
   }
 }
 
-bool CheckMultiClassObjective(const std::string& objective) {
+bool CheckMultiClassObjective(const std::string &objective)
+{
   return (objective == std::string("multiclass") || objective == std::string("multiclassova"));
 }
 
-void Config::CheckParamConflict() {
+void Config::CheckParamConflict()
+{
   // check if objective, metric, and num_class match
   int num_class_check = num_class;
   bool objective_type_multiclass = CheckMultiClassObjective(objective) || (objective == std::string("custom") && num_class_check > 1);
 
-  if (objective_type_multiclass) {
-    if (num_class_check <= 1) {
+  if (objective_type_multiclass)
+  {
+    if (num_class_check <= 1)
+    {
       Log::Fatal("Number of classes should be specified and greater than 1 for multiclass training");
     }
-  } else {
-    if (task == TaskType::kTrain && num_class_check != 1) {
+  }
+  else
+  {
+    if (task == TaskType::kTrain && num_class_check != 1)
+    {
       Log::Fatal("Number of classes must be 1 for non-multiclass training");
     }
   }
-  for (std::string metric_type : metric) {
-    bool metric_type_multiclass = (CheckMultiClassObjective(metric_type)
-                                   || metric_type == std::string("multi_logloss")
-                                   || metric_type == std::string("multi_error")
-                                   || (metric_type == std::string("custom") && num_class_check > 1));
-    if ((objective_type_multiclass && !metric_type_multiclass)
-        || (!objective_type_multiclass && metric_type_multiclass)) {
+  for (std::string metric_type : metric)
+  {
+    bool metric_type_multiclass = (CheckMultiClassObjective(metric_type) || metric_type == std::string("multi_logloss") || metric_type == std::string("multi_error") || (metric_type == std::string("custom") && num_class_check > 1));
+    if ((objective_type_multiclass && !metric_type_multiclass) || (!objective_type_multiclass && metric_type_multiclass))
+    {
       Log::Fatal("Multiclass objective and metrics don't match");
     }
   }
 
-  if (num_machines > 1) {
+  if (num_machines > 1)
+  {
     is_parallel = true;
-  } else {
+  }
+  else
+  {
     is_parallel = false;
     tree_learner = "serial";
   }
 
   bool is_single_tree_learner = tree_learner == std::string("serial");
 
-  if (is_single_tree_learner) {
+  if (is_single_tree_learner)
+  {
     is_parallel = false;
     num_machines = 1;
   }
 
-  if (is_single_tree_learner || tree_learner == std::string("feature")) {
+  if (is_single_tree_learner || tree_learner == std::string("feature"))
+  {
     is_parallel_find_bin = false;
-  } else if (tree_learner == std::string("data")
-             || tree_learner == std::string("voting")) {
+  }
+  else if (tree_learner == std::string("data") || tree_learner == std::string("voting") || tree_learner == "benchmark")
+  {
     is_parallel_find_bin = true;
-    if (histogram_pool_size >= 0
-        && tree_learner == std::string("data")) {
+    if (histogram_pool_size >= 0 && tree_learner == std::string("data"))
+    {
       Log::Warning("Histogram LRU queue was enabled (histogram_pool_size=%f).\n"
                    "Will disable this to reduce communication costs",
                    histogram_pool_size);
@@ -314,17 +436,19 @@ void Config::CheckParamConflict() {
     }
   }
   // Check max_depth and num_leaves
-  if (max_depth > 0) {
+  if (max_depth > 0)
+  {
     int full_num_leaves = static_cast<int>(std::pow(2, max_depth));
-    if (full_num_leaves > num_leaves
-        && num_leaves == kDefaultNumLeaves) {
+    if (full_num_leaves > num_leaves && num_leaves == kDefaultNumLeaves)
+    {
       Log::Warning("Accuracy may be bad since you didn't set num_leaves and 2^max_depth > num_leaves");
     }
     num_leaves = std::min(num_leaves, 2 << max_depth);
   }
 }
 
-std::string Config::ToString() const {
+std::string Config::ToString() const
+{
   std::stringstream str_buf;
   str_buf << "[boosting: " << boosting << "]\n";
   str_buf << "[objective: " << objective << "]\n";
@@ -335,4 +459,4 @@ std::string Config::ToString() const {
   return str_buf.str();
 }
 
-}  // namespace LightGBM
+} // namespace LightGBM
