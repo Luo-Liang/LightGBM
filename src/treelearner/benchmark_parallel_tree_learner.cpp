@@ -151,7 +151,7 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::Init(const Dataset *train_data
   }
 
   //get communication backend.
-  auto commBackend = std::string(std::getenv("BENCHMARK_PREFERRED_BACKEND"));
+  auto commBackend = std::string(std::getenv("BENCHMARK_PREFERRED_BACKEND") == nullptr ? "" : std::getenv("BENCHMARK_PREFERRED_BACKEND"));
   if (commBackend == "" || commBackend == "DEFAULT")
   {
     benchmarkCommBackend = BenchmarkPreferredBackend::DEFAULT;
