@@ -349,6 +349,7 @@ inline void PHubHistogramBinEntrySumReducer(char *src, char *dst)
 // To-do: reduce the communication cost by using bitset to communicate.
 inline void SyncUpGlobalBestSplit(char *input_buffer_, char *output_buffer_, SplitInfo *smaller_best_split, SplitInfo *larger_best_split, int max_cat_threshold, std::shared_ptr<PHub> pHub = nullptr)
 {
+  fprintf(stderr,"[%d] syncupglobalbestsplit\n", Network::rank()); 
   EASY_FUNCTION(profiler::colors::Green);
   // sync global best info
   int size = SplitInfo::Size(max_cat_threshold);

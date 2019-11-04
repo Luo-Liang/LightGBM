@@ -271,6 +271,8 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
 template <typename TREELEARNER_T>
 void BenchmarkParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
 {
+  fprintf(stderr, "[%d]benchmarked tree learner . FindBestSplits\n", Network::rank());
+ 
   EASY_FUNCTION(profiler::colors::Magenta);
   //TREELEARNER_T::ConstructHistograms(this->is_feature_used_, true);
   // construct local histograms
@@ -405,6 +407,7 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
 template <typename TREELEARNER_T>
 void BenchmarkParallelTreeLearner<TREELEARNER_T>::FindBestSplitsFromHistograms(const std::vector<int8_t> &, bool)
 {
+  fprintf(stderr, "[%d]benchmarked tree learner . FindBestSplitsFromHistograms\n", Network::rank());
   SplitInfo smaller_best_split, larger_best_split;
   smaller_best_split = this->best_split_per_leaf_.at(this->smaller_leaf_splits_->LeafIndex());
   // find local best split for larger leaf
