@@ -447,16 +447,16 @@ bool MultiNodeBenchmark::TrainOneIter(const score_t *gradients, const score_t *h
     //fprintf(stderr, "[%d]  train one iter = %d\n", Network::rank(), iter_);
     std::vector<double> init_scores(num_tree_per_iteration_, 0.0);
     // boosting first
-    if (gradients == nullptr || hessians == nullptr)
-    {
-        for (int cur_tree_id = 0; cur_tree_id < num_tree_per_iteration_; ++cur_tree_id)
-        {
-            init_scores[cur_tree_id] = BoostFromAverage(cur_tree_id, true);
-        }
-        Boosting();
-        gradients = gradients_.data();
-        hessians = hessians_.data();
-    }
+    // if (gradients == nullptr || hessians == nullptr)
+    // {
+    //     for (int cur_tree_id = 0; cur_tree_id < num_tree_per_iteration_; ++cur_tree_id)
+    //     {
+    //         init_scores[cur_tree_id] = BoostFromAverage(cur_tree_id, true);
+    //     }
+    //     Boosting();
+    //     gradients = gradients_.data();
+    //     hessians = hessians_.data();
+    // }
     // bagging logic
     // Bagging(iter_);
 
