@@ -270,7 +270,7 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
 template <typename TREELEARNER_T>
 void BenchmarkParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
 {
-  fprintf(stderr, "[%d]benchmarked tree learner . FindBestSplits\n", Network::rank());
+  //fprintf(stderr, "[%d]benchmarked tree learner . FindBestSplits\n", Network::rank());
 
   EASY_FUNCTION(profiler::colors::Magenta);
   //TREELEARNER_T::ConstructHistograms(this->is_feature_used_, true);
