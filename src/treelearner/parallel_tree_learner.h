@@ -376,6 +376,7 @@ inline void SyncUpGlobalBestSplit(char *input_buffer_, char *output_buffer_, Spl
   //enable shadow plink reduction inplace.
   //two sizes at most in reduction
   //if (pHub != nullptr)
+  fprintf(stderr, "[%d] all reduce splitifnfo\n",pHub->ID);
   EASY_BLOCK("AllReduce SplitInfo", profiler::colors::Purple);
   CHECK(size * 2 == pHub->keySizes.at(0));
   //make sure PHub is set up correctly
