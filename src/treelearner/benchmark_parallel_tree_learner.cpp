@@ -23,9 +23,18 @@ BenchmarkParallelTreeLearner<TREELEARNER_T>::BenchmarkParallelTreeLearner(const 
 template <typename TREELEARNER_T>
 BenchmarkParallelTreeLearner<TREELEARNER_T>::~BenchmarkParallelTreeLearner()
 {
-  pHubAllReduceT3->FastTerminate();
-  pHubAllReduceSplitInfo->FastTerminate();
-  pHubReduceScatter->FastTerminate();
+  if (pHubAllReduceT3 != nullptr)
+  {
+    pHubAllReduceT3->FastTerminate();
+  }
+  if (pHubAllReduceSplitInfo != nullptr)
+  {
+    pHubAllReduceSplitInfo->FastTerminate();
+  }
+  if (pHubReduceScatter != nullptr)
+  {
+    pHubReduceScatter->FastTerminate();
+  }
 }
 
 template <typename TREELEARNER_T>
