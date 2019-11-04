@@ -445,7 +445,7 @@ bool MultiNodeBenchmark::TrainOneIter(const score_t *gradients, const score_t *h
 {
     EASY_FUNCTION(profiler::colors::Yellow100);
     //fprintf(stderr, "[%d]  train one iter = %d\n", Network::rank(), iter_);
-    std::vector<double> init_scores(num_tree_per_iteration_, 0.0);
+    //std::vector<double> init_scores(num_tree_per_iteration_, 0.0);
     // boosting first
     // if (gradients == nullptr || hessians == nullptr)
     // {

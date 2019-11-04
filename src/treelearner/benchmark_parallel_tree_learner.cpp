@@ -311,7 +311,7 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
 
   //for PHub, we need to first figure out keys, and this is very simple
 
-  //std::string str = ""; //CxxxxStringFormat("[%d] reduce scatter keys:\n", rank_);
+  std::string str = ""; //CxxxxStringFormat("[%d] reduce scatter keys:\n", rank_);
   //EASY_BLOCK("Calculating keys", profiler::colors::Orange);
   for (int i = 0; i < num_machines_; i++)
   {
@@ -325,7 +325,7 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
     //int phubbytes = 0;
     for (PLinkKey key = start; key < start + count; key++)
     {
-      //str += CxxxxStringFormat(",%d", key);
+      str += CxxxxStringFormat("%d, ", key);
       //plink key supports basic arith,
       tasks.push_back(key);
       //phubbytes += pHubReduceScatter->keySizes.at(key);
@@ -344,7 +344,7 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
     //PHUB_CHECK(memcmp(input_buffer_.data() + block_start_.at(i), reduceScatterNodeStartingAddress.at(i), block_len_.at(i)) == 0) << " id: " << rank_ << " to " << num_machines_ << " send mismatch.";
   }
   //EASY_END_BLOCK;
-  //fprintf(stderr, "[%d] reduce scatter keys: %s\n", rank_, str.c_str());
+  fprintf(stderr, "[%d] reduce scatter keys: %s\n", rank_, str.c_str());
 
   // Reduce scatter for histogram
 
