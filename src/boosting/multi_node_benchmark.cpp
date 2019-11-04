@@ -443,6 +443,7 @@ double MultiNodeBenchmark::BoostFromAverage(int class_id, bool update_scorer)
 
 bool MultiNodeBenchmark::TrainOneIter(const score_t *gradients, const score_t *hessians)
 {
+    EASY_FUNCTION(profiler::colors::Yellow100);
     //fprintf(stderr, "[%d]  train one iter = %d\n", Network::rank(), iter_);
     std::vector<double> init_scores(num_tree_per_iteration_, 0.0);
     // boosting first
