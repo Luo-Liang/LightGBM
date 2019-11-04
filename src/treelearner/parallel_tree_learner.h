@@ -127,6 +127,12 @@ private:
   std::vector<data_size_t> global_data_count_in_leaf_;
 };
 
+enum BenchmarkPreferredBackend
+{
+  PHUB,
+  DEFAULT
+};
+
 /*!
 * \brief Data parallel learning algorithm.
 *        Workers use local data to construct histograms locally, then sync up global histograms.
@@ -180,6 +186,7 @@ private:
   std::shared_ptr<PHub> pHubReduceScatter = nullptr;
   std::shared_ptr<PHub> pHubAllReduceT3 = nullptr;
   std::shared_ptr<PHub> pHubAllReduceSplitInfo = nullptr;
+  BenchmarkPreferredBackend benchmarkCommBackend = BenchmarkPreferredBackend::PHUB;
 
   /*! \brief Rank of local machine */
   int rank_;
@@ -345,56 +352,49 @@ inline void PHubHistogramBinEntrySumReducer(char *src, char *dst)
   //idx++;
 }
 
-
 // To-do: reduce the communication cost by using bitset to communicate.
 inline void SyncUpGlobalBestSplit(char *input_buffer_, char *output_buffer_, SplitInfo *smaller_best_split, SplitInfo *larger_best_split, int max_cat_threshold, std::shared_ptr<PHub> pHub = nullptr)
 {
-  //fprintf(stderr,"[%d] syncupglobalbestsplit\n", Network::rank()); 
+  //fprintf(stderr,"[%d] syncupglobalbestsplit\n", Network::rank());
   EASY_FUNCTION(profiler::colors::Green);
   // sync global best info
   int size = SplitInfo::Size(max_cat_threshold);
   smaller_best_split->CopyTo(input_buffer_);
   larger_best_split->CopyTo(input_buffer_ + size);
 
-  // Network::Allreduce(input_buffer_, size * 2, size, output_buffer_,
-  //                    [](const char *src, char *dst, int size, comm_size_t len) {
-  //                      comm_size_t used_size = 0;
-  //                      LightSplitInfo p1, p2;
-  //                      while (used_size < len)
-  //                      {
-  //                        p1.CopyFrom(src);
-  //                        p2.CopyFrom(dst);
-  //                        if (p1 > p2)
-  //                        {
-  //                          std::memcpy(dst, src, size);
-  //                        }
-  //                        src += size;
-  //                        dst += size;
-  //                        used_size += size;
-  //                      }
-  //                    });
-
-  //enable shadow plink reduction inplace.
-  //two sizes at most in reduction
-  //if (pHub != nullptr)
-  //fprintf(stderr, "[%d] all reduce splitifnfo\n",pHub->ID);
-  EASY_BLOCK("AllReduce SplitInfo", profiler::colors::Purple);
-  CHECK(size * 2 == pHub->keySizes.at(0));
-  //make sure PHub is set up correctly
-  //redirect read location
-  //i have only 1 key.
-  PHUB_CHECK(max_cat_threshold == 32) << "PHub currently hardcodes max_cat_threshold to 32. actual = " << max_cat_threshold;
-  pHub->Reduce();
-  //shadow run
-  //i need bit by bit equal.
-  //PHUB_CHECK(memcmp(pHub->ApplicationSuppliedOutputAddrs.at(0), output_buffer_, 2 * size) == 0);
-  EASY_END_BLOCK;
-
-  // copy back
+  if (pHub == nullptr)
+  {
+    EASY_BLOCK("Default AllReduce SplitInfo", profiler::colors::Purple);
+    Network::Allreduce(input_buffer_, size * 2, size, output_buffer_,
+                       [](const char *src, char *dst, int size, comm_size_t len) {
+                         comm_size_t used_size = 0;
+                         LightSplitInfo p1, p2;
+                         while (used_size < len)
+                         {
+                           p1.CopyFrom(src);
+                           p2.CopyFrom(dst);
+                           if (p1 > p2)
+                           {
+                             std::memcpy(dst, src, size);
+                           }
+                           src += size;
+                           dst += size;
+                           used_size += size;
+                         }
+                       });
+    EASY_END_BLOCK;
+  }
+  else
+  {
+    EASY_BLOCK("PHub AllReduce SplitInfo", profiler::colors::Purple);
+    CHECK(size * 2 == pHub->keySizes.at(0));
+    PHUB_CHECK(max_cat_threshold == 32) << "PHub currently hardcodes max_cat_threshold to 32. actual = " << max_cat_threshold;
+    pHub->Reduce();
+    EASY_END_BLOCK;
+  }
   smaller_best_split->CopyFrom(output_buffer_);
-  larger_best_split->CopyFrom(output_buffer_ + size);
+  larger_best_split->CopyFrom(output_buffer_ + size);  
 }
-
 
 inline std::string getKeyOwnershipString(int numMachines, int keysPerMachine)
 {

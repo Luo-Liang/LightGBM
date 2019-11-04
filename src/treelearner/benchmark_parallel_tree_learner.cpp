@@ -136,6 +136,34 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::Init(const Dataset *train_data
   global_data_count_in_leaf_.resize(this->config_->num_leaves);
 
   InitializePHub();
+
+  //reset real impl to use same size as PHub
+  input_buffer_.resize(pHubBackingBufferForReduceScatter.size());
+  output_buffer_.resize(pHubBackingBufferForReduceScatter.size());
+
+  //now, equally partition this to reduce scatter.
+  reduce_scatter_size_ = pHubBackingBufferForReduceScatter.size();
+  comm_size_t perNode = reduce_scatter_size_ / num_machines_;
+  for (int i = 0; i < num_machines_; i++)
+  {
+    block_len_.at(i) = perNode;
+    block_start_.at(i) = i == 0 ? 0 : block_start_.at(i - 1) + perNode;
+  }
+
+  //get communication backend.
+  auto commBackend = std::string(std::getenv("BENCHMARK_PREFERRED_BACKEND"));
+  if (commBackend == "" || commBackend == "DEFAULT")
+  {
+    benchmarkCommBackend = BenchmarkPreferredBackend::DEFAULT;
+  }
+  else if (commBackend == "PHUB")
+  {
+    benchmarkCommBackend = BenchmarkPreferredBackend::PHUB;
+  }
+  else
+  {
+    PHUB_CHECK(false);
+  }
 }
 
 template <typename TREELEARNER_T>
@@ -151,120 +179,150 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
   //EASY_FUNCTION(profiler::colors::Red50);
   //TREELEARNER_T::BeforeTrain();
   // generate feature partition for current tree
-  std::vector<std::vector<int>> feature_distribution(num_machines_, std::vector<int>());
-  std::vector<int> num_bins_distributed(num_machines_, 0);
+  // std::vector<std::vector<int>> feature_distribution(num_machines_, std::vector<int>());
+  // std::vector<int> num_bins_distributed(num_machines_, 0);
 
-  reduceScatterInnerFid2NodeMapping.resize(this->train_data_->num_total_features());
-  for (int i = 0; i < this->train_data_->num_total_features(); ++i)
-  {
-    int inner_feature_index = this->train_data_->InnerFeatureIndex(i);
-    if (inner_feature_index == -1)
-    {
-      continue;
-    }
-    if (this->is_feature_used_[inner_feature_index])
-    {
-      int cur_min_machine = static_cast<int>(ArrayArgs<int>::ArgMin(num_bins_distributed));
-      feature_distribution[cur_min_machine].push_back(inner_feature_index);
-      //unfortunately inneridx is orderless.
-      //fprintf(stderr, "[%d] instatiate order: f_d[%d] . append(%d)\n", cur_min_machine, inner_feature_index);
-      reduceScatterInnerFid2NodeMapping.at(inner_feature_index) = cur_min_machine;
-      auto num_bin = this->train_data_->FeatureNumBin(inner_feature_index);
-      if (this->train_data_->FeatureBinMapper(inner_feature_index)->GetDefaultBin() == 0)
-      {
-        num_bin -= 1;
-      }
-
-      num_bins_distributed[cur_min_machine] += num_bin;
-    }
-    is_feature_aggregated_[inner_feature_index] = false;
-  }
-
-  // get local used feature
-  for (auto fid : feature_distribution[rank_])
-  {
-    is_feature_aggregated_[fid] = true;
-  }
-
-  // get block start and block len for reduce scatter
-  reduce_scatter_size_ = 0;
-  for (int i = 0; i < num_machines_; ++i)
-  {
-    block_len_[i] = 0;
-    *(reduceScatterNodeByteCounters.at(i)) = 0;
-    for (auto fid : feature_distribution[i])
-    {
-      auto num_bin = this->train_data_->FeatureNumBin(fid);
-      if (this->train_data_->FeatureBinMapper(fid)->GetDefaultBin() == 0)
-      {
-        num_bin -= 1;
-      }
-      block_len_[i] += num_bin * sizeof(HistogramBinEntry);
-    }
-    reduceScatterBlockLenAccSum.at(i) = i == 0 ? block_len_[i] : block_len_[i] + reduceScatterBlockLenAccSum.at(i - 1);
-    reduce_scatter_size_ += block_len_[i];
-  }
-
-  //fprintf(stderr, "[%d] reduce_scatter size = %d\n", rank_, reduce_scatter_size_);
-  // Log::Info("[%d] reduce_scatter_size_ = %d", Network::rank(), reduce_scatter_size_);
-  // for (size_t i = 0; i < block_len_.size(); i++)
+  // reduceScatterInnerFid2NodeMapping.resize(this->train_data_->num_total_features());
+  // for (int i = 0; i < this->train_data_->num_total_features(); ++i)
   // {
-  //   Log::Info("[%d] block size = %d. elements = %d. perfectly aligned = %d", Network::rank(), block_len_[i], block_len_[i] / sizeof(HistogramBinEntry), block_len_[i] % sizeof(HistogramBinEntry) == 0);
+  //   int inner_feature_index = this->train_data_->InnerFeatureIndex(i);
+  //   if (inner_feature_index == -1)
+  //   {
+  //     continue;
+  //   }
+  //   if (this->is_feature_used_[inner_feature_index])
+  //   {
+  //     int cur_min_machine = static_cast<int>(ArrayArgs<int>::ArgMin(num_bins_distributed));
+  //     feature_distribution[cur_min_machine].push_back(inner_feature_index);
+  //     //unfortunately inneridx is orderless.
+  //     //fprintf(stderr, "[%d] instatiate order: f_d[%d] . append(%d)\n", cur_min_machine, inner_feature_index);
+  //     reduceScatterInnerFid2NodeMapping.at(inner_feature_index) = cur_min_machine;
+  //     auto num_bin = this->train_data_->FeatureNumBin(inner_feature_index);
+  //     if (this->train_data_->FeatureBinMapper(inner_feature_index)->GetDefaultBin() == 0)
+  //     {
+  //       num_bin -= 1;
+  //     }
+
+  //     num_bins_distributed[cur_min_machine] += num_bin;
+  //   }
+  //   is_feature_aggregated_[inner_feature_index] = false;
   // }
 
-  block_start_[0] = 0;
-  for (int i = 1; i < num_machines_; ++i)
-  {
-    block_start_[i] = block_start_[i - 1] + block_len_[i - 1];
-  }
+  // // get local used feature
+  // for (auto fid : feature_distribution[rank_])
+  // {
+  //   is_feature_aggregated_[fid] = true;
+  // }
 
-  // get buffer_write_start_pos_
-  int bin_size = 0;
-  for (int i = 0; i < num_machines_; ++i)
-  {
-    for (auto fid : feature_distribution[i])
-    {
-      buffer_write_start_pos_[fid] = bin_size;
-      //fprintf(stderr, "[%d] fid = %d, target = %d, start offset = %d\n", rank_, fid, i, bin_size);
-      auto num_bin = this->train_data_->FeatureNumBin(fid);
-      if (this->train_data_->FeatureBinMapper(fid)->GetDefaultBin() == 0)
-      {
-        num_bin -= 1;
-      }
-      bin_size += num_bin * sizeof(HistogramBinEntry);
-    }
-  }
+  // // get block start and block len for reduce scatter
+  // reduce_scatter_size_ = 0;
+  // for (int i = 0; i < num_machines_; ++i)
+  // {
+  //   block_len_[i] = 0;
+  //   *(reduceScatterNodeByteCounters.at(i)) = 0;
+  //   for (auto fid : feature_distribution[i])
+  //   {
+  //     auto num_bin = this->train_data_->FeatureNumBin(fid);
+  //     if (this->train_data_->FeatureBinMapper(fid)->GetDefaultBin() == 0)
+  //     {
+  //       num_bin -= 1;
+  //     }
+  //     block_len_[i] += num_bin * sizeof(HistogramBinEntry);
+  //   }
+  //   reduceScatterBlockLenAccSum.at(i) = i == 0 ? block_len_[i] : block_len_[i] + reduceScatterBlockLenAccSum.at(i - 1);
+  //   reduce_scatter_size_ += block_len_[i];
+  // }
 
-  // get buffer_read_start_pos_
-  bin_size = 0;
-  for (auto fid : feature_distribution[rank_])
-  {
-    buffer_read_start_pos_[fid] = bin_size;
-    auto num_bin = this->train_data_->FeatureNumBin(fid);
-    if (this->train_data_->FeatureBinMapper(fid)->GetDefaultBin() == 0)
-    {
-      num_bin -= 1;
-    }
-    bin_size += num_bin * sizeof(HistogramBinEntry);
-  }
+  // //fprintf(stderr, "[%d] reduce_scatter size = %d\n", rank_, reduce_scatter_size_);
+  // // Log::Info("[%d] reduce_scatter_size_ = %d", Network::rank(), reduce_scatter_size_);
+  // // for (size_t i = 0; i < block_len_.size(); i++)
+  // // {
+  // //   Log::Info("[%d] block size = %d. elements = %d. perfectly aligned = %d", Network::rank(), block_len_[i], block_len_[i] / sizeof(HistogramBinEntry), block_len_[i] % sizeof(HistogramBinEntry) == 0);
+  // // }
+
+  // block_start_[0] = 0;
+  // for (int i = 1; i < num_machines_; ++i)
+  // {
+  //   block_start_[i] = block_start_[i - 1] + block_len_[i - 1];
+  // }
+
+  // // get buffer_write_start_pos_
+  // int bin_size = 0;
+  // for (int i = 0; i < num_machines_; ++i)
+  // {
+  //   for (auto fid : feature_distribution[i])
+  //   {
+  //     buffer_write_start_pos_[fid] = bin_size;
+  //     //fprintf(stderr, "[%d] fid = %d, target = %d, start offset = %d\n", rank_, fid, i, bin_size);
+  //     auto num_bin = this->train_data_->FeatureNumBin(fid);
+  //     if (this->train_data_->FeatureBinMapper(fid)->GetDefaultBin() == 0)
+  //     {
+  //       num_bin -= 1;
+  //     }
+  //     bin_size += num_bin * sizeof(HistogramBinEntry);
+  //   }
+  // }
+
+  // // get buffer_read_start_pos_
+  // bin_size = 0;
+  // for (auto fid : feature_distribution[rank_])
+  // {
+  //   buffer_read_start_pos_[fid] = bin_size;
+  //   auto num_bin = this->train_data_->FeatureNumBin(fid);
+  //   if (this->train_data_->FeatureBinMapper(fid)->GetDefaultBin() == 0)
+  //   {
+  //     num_bin -= 1;
+  //   }
+  //   bin_size += num_bin * sizeof(HistogramBinEntry);
+  // }
 
   // sync global data sumup info
   std::tuple<data_size_t, double, double> data(this->smaller_leaf_splits_->num_data_in_leaf(),
                                                this->smaller_leaf_splits_->sum_gradients(), this->smaller_leaf_splits_->sum_hessians());
   //shadow operation. use this for correctness test.
   //change source direction.
-  pHubAllReduceT3->ApplicationSuppliedAddrs.at(0) = &data;       //&data1;
-  pHubAllReduceT3->ApplicationSuppliedOutputAddrs.at(0) = &data; //&data1;
-  COMPILER_BARRIER();
-  //fine, no race, because syncrhonziation points introduced by work queues.
-  EASY_BLOCK("T3 AllReduce");
-  pHubAllReduceT3->Reduce();
-  EASY_END_BLOCK;
+  switch (benchmarkCommBackend)
+  {
+  case BenchmarkPreferredBackend::PHUB:
+  {
+    pHubAllReduceT3->ApplicationSuppliedAddrs.at(0) = &data;       //&data1;
+    pHubAllReduceT3->ApplicationSuppliedOutputAddrs.at(0) = &data; //&data1;
+    COMPILER_BARRIER();
+    //fine, no race, because syncrhonziation points introduced by work queues.
+    EASY_BLOCK("PHub T3 AllReduce");
+    pHubAllReduceT3->Reduce();
+    EASY_END_BLOCK;
+    break;
+  }
+  case BenchmarkPreferredBackend::DEFAULT:
+  {
+    int size = sizeof(data);
+    Network::Allreduce(input_buffer_.data(), size, sizeof(std::tuple<data_size_t, double, double>), output_buffer_.data(), [](const char *src, char *dst, int type_size, comm_size_t len) {
+      comm_size_t used_size = 0;
+      const std::tuple<data_size_t, double, double> *p1;
+      std::tuple<data_size_t, double, double> *p2;
+      while (used_size < len)
+      {
+        p1 = reinterpret_cast<const std::tuple<data_size_t, double, double> *>(src);
+        p2 = reinterpret_cast<std::tuple<data_size_t, double, double> *>(dst);
+        std::get<0>(*p2) = std::get<0>(*p2) + std::get<0>(*p1);
+        std::get<1>(*p2) = std::get<1>(*p2) + std::get<1>(*p1);
+        std::get<2>(*p2) = std::get<2>(*p2) + std::get<2>(*p1);
+        src += type_size;
+        dst += type_size;
+        used_size += type_size;
+      }
+    });
+    break;
+  }
+  default:
+    break;
+  }
 
   // set global sumup info
-  this->smaller_leaf_splits_->Init(std::get<1>(data), std::get<2>(data));
+  //this->smaller_leaf_splits_->Init(std::get<1>(data), std::get<2>(data));
   // init global data count in leaf
-  global_data_count_in_leaf_[0] = std::get<0>(data);
+  //global_data_count_in_leaf_[0] = std::get<0>(data);
 }
 
 template <typename TREELEARNER_T>
@@ -282,17 +340,26 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
 
   // Reduce scatter for histogram
 
-  //Network::ReduceScatter(input_buffer_.data(), reduce_scatter_size_, sizeof(HistogramBinEntry), block_start_.data(),
-  //                        block_len_.data(), output_buffer_.data(), static_cast<comm_size_t>(output_buffer_.size()), &HistogramBinEntry::SumReducer);
-
-  //fprintf(stderr, str.c_str());
-  // static int times = 0;
-  // static std::vector<double> spans;
-  // Timer t;
-  EASY_BLOCK("ReduceScatter");
-  pHubReduceScatter->Reduce();
-  EASY_END_BLOCK;
-  //spans.push_back(t.ns());
+  switch (benchmarkCommBackend)
+  {
+  case BenchmarkPreferredBackend::DEFAULT:
+  {
+    EASY_BLOCK("Default_ReduceScatter");
+    Network::ReduceScatter(input_buffer_.data(), reduce_scatter_size_, sizeof(HistogramBinEntry), block_start_.data(),
+                           block_len_.data(), output_buffer_.data(), static_cast<comm_size_t>(output_buffer_.size()), &HistogramBinEntry::SumReducer);
+    EASY_END_BLOCK;
+    break;
+  }
+  case BenchmarkPreferredBackend::PHUB:
+  {
+    EASY_BLOCK("PHub_ReduceScatter");
+    pHubReduceScatter->Reduce();
+    EASY_END_BLOCK;
+    break;
+  }
+  default:
+    break;
+  }
 
   // times++;
   // if (times % 1000 == 0)
@@ -315,7 +382,21 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::FindBestSplitsFromHistograms(c
   //fprintf(stderr, "[%d]benchmarked tree learner . FindBestSplitsFromHistograms.418\n", Network::rank());
   //all ignored.
   // sync global best info
-  SyncUpGlobalBestSplit(input_buffer_.data(), input_buffer_.data(), &smaller_best_split, &larger_best_split, this->config_->max_cat_threshold, pHubAllReduceSplitInfo);
+  switch (benchmarkCommBackend)
+  {
+  case BenchmarkPreferredBackend::DEFAULT:
+  {
+    SyncUpGlobalBestSplit(input_buffer_.data(), input_buffer_.data(), &smaller_best_split, &larger_best_split, this->config_->max_cat_threshold);
+    break;
+  }
+  case BenchmarkPreferredBackend::PHUB:
+  {
+    SyncUpGlobalBestSplit(input_buffer_.data(), input_buffer_.data(), &smaller_best_split, &larger_best_split, this->config_->max_cat_threshold, pHubAllReduceSplitInfo);
+    break;
+  }
+  default:
+    break;
+  }
 }
 
 template <typename TREELEARNER_T>
