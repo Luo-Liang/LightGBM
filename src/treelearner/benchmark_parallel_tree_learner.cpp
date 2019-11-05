@@ -76,6 +76,7 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::InitializePHub()
     //std::vector<size_t> &bytes,
     //std::vector<void *> keyAddrs);
 
+    /*
     //I need to figure out key ownership
     PHUB_CHECK(numbin % chunkSize == 0);
     int reduceScatterPerMachineKeyCount = numbin;
@@ -87,11 +88,11 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::InitializePHub()
     pHubReduceScatter = createPHubInstance(pHubBackingBufferForReduceScatter.data(), reduceScatterTotalKeyCount, num_machines_, rank_, 0, PHubDataType::CUSTOM, sizeof(HistogramBinEntry), reduceScatterSupplement);
     PHUB_CHECK(pHubReduceScatter->keySizes.size() == num_machines_ * numbin / chunkSize);
     pHubReduceScatter->SetReductionFunction(&PHubHistogramBinEntrySumReducer);
-   
-    /*
+
+    
     const int PHUB_ALL_REDUCE_T3_KEY0_SIZE = sizeof(std::tuple<data_size_t, double, double>);
     pHubBackingBufferForAllReduceT3.resize(PHUB_ALL_REDUCE_T3_KEY0_SIZE);
-    setenv("PLINK_SCHEDULE_TYPE", "allreduce", 1);
+    setenv("PLINK_SCHEDULE_TYPE", "allreduce", 1);*/
     int reduceScatterCores = 1;
     if (getenv("PHubMaximumCore") != nullptr)
     {
@@ -100,13 +101,12 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::InitializePHub()
       setenv("PHubCoreOffset", getenv("PHubMaximumCore"), 1);
       setenv("PHubMaximumCore", "1", 1);
     }
-    
-
+    /*
     setenv("PHubChunkElementSize", "1", 1);
     pHubAllReduceT3 = createPHubInstance(pHubBackingBufferForAllReduceT3.data(), 1, num_machines_, rank_, 1, PHubDataType::CUSTOM, PHUB_ALL_REDUCE_T3_KEY0_SIZE);
     pHubAllReduceT3->SetReductionFunction(&PHubTuple3Reducer);
     PHUB_CHECK(pHubAllReduceT3->keySizes.size() == 1 && (size_t)pHubAllReduceT3->keySizes.at(0) == pHubBackingBufferForAllReduceT3.size());
-
+    */
     if (getenv("PHubMaximumCore") != nullptr)
     {
       //sets phubcoreoffset to continue right after max core.
@@ -123,7 +123,6 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::InitializePHub()
     //both write to input_buffer.
     pHubAllReduceSplitInfo->ApplicationSuppliedOutputAddrs.at(0) = input_buffer_.data(); //pHubBackingBufferForAllReduceSplitInfo.data();
     pHubAllReduceSplitInfo->ApplicationSuppliedAddrs.at(0) = input_buffer_.data();
-    */
   }
 }
 
@@ -172,7 +171,7 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::Init(const Dataset *train_data
   //get communication backend.
   if (commBackend == "" || commBackend == "DEFAULT")
   {
-    fprintf(stderr, "[%d] Default benchmark activated. total = %f MB. perNode = %d MB\n", Network::rank(), reduce_scatter_size_ / 1024.0 / 1024.0, perNode / 1024.0 / 1024.0);
+    fprintf(stderr, "[%d] Default benchmark activated. total = %f MB. perNode = %f MB\n", Network::rank(), reduce_scatter_size_ / 1024.0 / 1024.0, perNode / 1024.0 / 1024.0);
     benchmarkCommBackend = BenchmarkPreferredBackend::DEFAULT;
   }
   else if (commBackend == "PHUB")
@@ -294,8 +293,8 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
   //   }
   //   bin_size += num_bin * sizeof(HistogramBinEntry);
   // }
-  return;
   // sync global data sumup info
+  return;
   std::tuple<data_size_t, double, double> data(this->smaller_leaf_splits_->num_data_in_leaf(),
                                                this->smaller_leaf_splits_->sum_gradients(), this->smaller_leaf_splits_->sum_hessians());
   //shadow operation. use this for correctness test.
@@ -350,50 +349,36 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
   //fprintf(stderr, "[%d]benchmarked tree learner . FindBestSplits\n", Network::rank());
 
   EASY_FUNCTION(profiler::colors::Magenta);
-  //TREELEARNER_T::ConstructHistograms(this->is_feature_used_, true);
-  // construct local histograms
-  //I am skeptical whether OMP will help in this case.
-  //#pragma omp parallel for schedule(static)
 
-  //fprintf(stderr, "[%d] reduce scatter keys: %s\n", rank_, str.c_str());
 
-  // Reduce scatter for histogram
-
-  switch (benchmarkCommBackend)
-  {
-  case BenchmarkPreferredBackend::DEFAULT:
-  {
-    EASY_BLOCK("Default_ReduceScatter");
-    Network::ReduceScatter(input_buffer_.data(), reduce_scatter_size_, sizeof(HistogramBinEntry), block_start_.data(),
-                           block_len_.data(), output_buffer_.data(), static_cast<comm_size_t>(output_buffer_.size()), &HistogramBinEntry::SumReducer);
-    EASY_END_BLOCK;
-    break;
-  }
-  case BenchmarkPreferredBackend::PHUB:
-  {
-    EASY_BLOCK("PHub_ReduceScatter");
-    pHubReduceScatter->Reduce();
-    EASY_END_BLOCK;
-    break;
-  }
-  default:
-    break;
-  }
-
-  // times++;
-  // if (times % 1000 == 0)
+  // switch (benchmarkCommBackend)
   // {
-  //   float average = std::accumulate(spans.begin(), spans.end(), 0.0) / spans.size();
-  //   fprintf(stderr, "[%d] avg reduce scatter: %f us\n", rank_, average / 1000.0);
+  // case BenchmarkPreferredBackend::DEFAULT:
+  // {
+  //   EASY_BLOCK("Default_ReduceScatter");
+  //   Network::ReduceScatter(input_buffer_.data(), reduce_scatter_size_, sizeof(HistogramBinEntry), block_start_.data(),
+  //                          block_len_.data(), output_buffer_.data(), static_cast<comm_size_t>(output_buffer_.size()), &HistogramBinEntry::SumReducer);
+  //   EASY_END_BLOCK;
+  //   break;
   // }
-  //now copy back. simple
+  // case BenchmarkPreferredBackend::PHUB:
+  // {
+  //   EASY_BLOCK("PHub_ReduceScatter");
+  //   pHubReduceScatter->Reduce();
+  //   EASY_END_BLOCK;
+  //   break;
+  // }
+  // default:
+  //   break;
+  // }
+
   this->FindBestSplitsFromHistograms(this->is_feature_used_, true);
 }
 
 template <typename TREELEARNER_T>
 void BenchmarkParallelTreeLearner<TREELEARNER_T>::FindBestSplitsFromHistograms(const std::vector<int8_t> &, bool)
 {
-  return;
+  //return;
   //fprintf(stderr, "[%d]benchmarked tree learner . FindBestSplitsFromHistograms\n", Network::rank());
   SplitInfo smaller_best_split, larger_best_split;
   //smaller_best_split = SplitInfo();
