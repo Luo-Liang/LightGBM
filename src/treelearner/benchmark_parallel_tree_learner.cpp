@@ -56,6 +56,7 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::InitializePHub()
   reduceScatterNodeStartingAddress.resize(num_machines_);
   reduceScatterNodeStartingKey.resize(num_machines_);
   reduceScatterBlockLenAccSum.resize(num_machines_);
+  auto commBackend = std::string(std::getenv("BENCHMARK_PREFERRED_BACKEND") == nullptr ? "" : std::getenv("BENCHMARK_PREFERRED_BACKEND"));
   if (commBackend == "PHUB")
   {
     for (int i = 0; i < num_machines_; i++)
