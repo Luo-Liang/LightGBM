@@ -345,7 +345,7 @@ void MultiNodeBenchmark::Train(int snapshot_freq, const std::string &)
         // output used time per iteration
         //auto totalComm = Network::GetNetworkTime(NetworkTimeType::EXCLUSIVESENDRECV);
         //auto bytesOnWire = Network::GetGlobalNetworkTransferSize() / 1024.0 / 1024.0;
-        if (snapshot_freq > 0 && (iter + 1) % snapshot_freq == 0)
+        if (iter == config_->num_iterations - 1 || (snapshot_freq > 0 && (iter + 1) % snapshot_freq == 0))
         {
             float average = std::accumulate(spans.begin(), spans.end(), 0.0) / spans.size();
             //std::string snapshot_out = model_output_path + ".snapshot_iter_" + std::to_string(iter + 1);

@@ -168,7 +168,7 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::Init(const Dataset *train_data
   //get communication backend.
   if (commBackend == "" || commBackend == "DEFAULT")
   {
-    fprintf(stderr, "[%d] Default benchmark activated. total = %f MB. perNode = %d MB\n", Network::rank(), reduce_scatter_size_ / 1024.0 / 1024.0, perNode / num_machines_);
+    fprintf(stderr, "[%d] Default benchmark activated. total = %f MB. perNode = %d MB\n", Network::rank(), reduce_scatter_size_ / 1024.0 / 1024.0, perNode / 1024.0 / 1024.0);
     benchmarkCommBackend = BenchmarkPreferredBackend::DEFAULT;
   }
   else if (commBackend == "PHUB")
