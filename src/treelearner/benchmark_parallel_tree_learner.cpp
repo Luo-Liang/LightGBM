@@ -166,7 +166,7 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::Init(const Dataset *train_data
   //get communication backend.
   if (commBackend == "" || commBackend == "DEFAULT")
   {
-    fprint(stderr, "[%d] Default benchmark activated\n", Network::rank());
+    fprintf(stderr, "[%d] Default benchmark activated\n", Network::rank());
     benchmarkCommBackend = BenchmarkPreferredBackend::DEFAULT;
   }
   else if (commBackend == "PHUB")
