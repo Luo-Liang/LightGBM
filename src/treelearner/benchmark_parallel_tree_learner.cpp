@@ -87,7 +87,8 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::InitializePHub()
     pHubReduceScatter = createPHubInstance(pHubBackingBufferForReduceScatter.data(), reduceScatterTotalKeyCount, num_machines_, rank_, 0, PHubDataType::CUSTOM, sizeof(HistogramBinEntry), reduceScatterSupplement);
     PHUB_CHECK(pHubReduceScatter->keySizes.size() == num_machines_ * numbin / chunkSize);
     pHubReduceScatter->SetReductionFunction(&PHubHistogramBinEntrySumReducer);
-
+   
+    /*
     const int PHUB_ALL_REDUCE_T3_KEY0_SIZE = sizeof(std::tuple<data_size_t, double, double>);
     pHubBackingBufferForAllReduceT3.resize(PHUB_ALL_REDUCE_T3_KEY0_SIZE);
     setenv("PLINK_SCHEDULE_TYPE", "allreduce", 1);
@@ -99,6 +100,8 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::InitializePHub()
       setenv("PHubCoreOffset", getenv("PHubMaximumCore"), 1);
       setenv("PHubMaximumCore", "1", 1);
     }
+    
+
     setenv("PHubChunkElementSize", "1", 1);
     pHubAllReduceT3 = createPHubInstance(pHubBackingBufferForAllReduceT3.data(), 1, num_machines_, rank_, 1, PHubDataType::CUSTOM, PHUB_ALL_REDUCE_T3_KEY0_SIZE);
     pHubAllReduceT3->SetReductionFunction(&PHubTuple3Reducer);
@@ -120,6 +123,7 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::InitializePHub()
     //both write to input_buffer.
     pHubAllReduceSplitInfo->ApplicationSuppliedOutputAddrs.at(0) = input_buffer_.data(); //pHubBackingBufferForAllReduceSplitInfo.data();
     pHubAllReduceSplitInfo->ApplicationSuppliedAddrs.at(0) = input_buffer_.data();
+    */
   }
 }
 
@@ -290,7 +294,7 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
   //   }
   //   bin_size += num_bin * sizeof(HistogramBinEntry);
   // }
-
+  return;
   // sync global data sumup info
   std::tuple<data_size_t, double, double> data(this->smaller_leaf_splits_->num_data_in_leaf(),
                                                this->smaller_leaf_splits_->sum_gradients(), this->smaller_leaf_splits_->sum_hessians());
@@ -389,6 +393,7 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
 template <typename TREELEARNER_T>
 void BenchmarkParallelTreeLearner<TREELEARNER_T>::FindBestSplitsFromHistograms(const std::vector<int8_t> &, bool)
 {
+  return;
   //fprintf(stderr, "[%d]benchmarked tree learner . FindBestSplitsFromHistograms\n", Network::rank());
   SplitInfo smaller_best_split, larger_best_split;
   //smaller_best_split = SplitInfo();
