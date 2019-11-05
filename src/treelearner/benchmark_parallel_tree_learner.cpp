@@ -56,68 +56,70 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::InitializePHub()
   reduceScatterNodeStartingAddress.resize(num_machines_);
   reduceScatterNodeStartingKey.resize(num_machines_);
   reduceScatterBlockLenAccSum.resize(num_machines_);
-
-  for (int i = 0; i < num_machines_; i++)
+  if (commBackend == "PHUB")
   {
-    reduceScatterNodeByteCounters.push_back(std::make_unique<std::atomic<int>>(0));
-    reduceScatterNodeStartingAddress.at(i) = pHubBackingBufferForReduceScatter.data() + i * buffer_size;
-    reduceScatterNodeStartingKey.at(i) = i * (numbin / chunkSize);
-    //reduceScatterNodeFidOrder.push_back(std::vector<int>());
-    //reduceScatterNodeFidOrder.reserve(numbin);
+    for (int i = 0; i < num_machines_; i++)
+    {
+      reduceScatterNodeByteCounters.push_back(std::make_unique<std::atomic<int>>(0));
+      reduceScatterNodeStartingAddress.at(i) = pHubBackingBufferForReduceScatter.data() + i * buffer_size;
+      reduceScatterNodeStartingKey.at(i) = i * (numbin / chunkSize);
+      //reduceScatterNodeFidOrder.push_back(std::vector<int>());
+      //reduceScatterNodeFidOrder.reserve(numbin);
+    }
+    //void getChunkedInformationGivenBuffer(
+    //void *ptr,
+    //size_t elements,
+    //size_t elementSize,
+    //int chunkElementCount,
+    //std::vector<size_t> &counts,
+    //std::vector<size_t> &bytes,
+    //std::vector<void *> keyAddrs);
+
+    //I need to figure out key ownership
+    PHUB_CHECK(numbin % chunkSize == 0);
+    int reduceScatterPerMachineKeyCount = numbin;
+    int reduceScatterTotalKeyCount = reduceScatterPerMachineKeyCount * num_machines_;
+    //here, getKeyOwnershipString is speaking PHub key, which is a collection of bins.
+    std::string reduceScatterSupplement = getKeyOwnershipString(num_machines_, reduceScatterPerMachineKeyCount / chunkSize);
+    setenv("PLINK_SCHEDULE_TYPE", "reducescatter", 1);
+    PHUB_CHECK(pHubBackingBufferForReduceScatter.size() == reduceScatterTotalKeyCount * sizeof(HistogramBinEntry));
+    pHubReduceScatter = createPHubInstance(pHubBackingBufferForReduceScatter.data(), reduceScatterTotalKeyCount, num_machines_, rank_, 0, PHubDataType::CUSTOM, sizeof(HistogramBinEntry), reduceScatterSupplement);
+    PHUB_CHECK(pHubReduceScatter->keySizes.size() == num_machines_ * numbin / chunkSize);
+    pHubReduceScatter->SetReductionFunction(&PHubHistogramBinEntrySumReducer);
+
+    const int PHUB_ALL_REDUCE_T3_KEY0_SIZE = sizeof(std::tuple<data_size_t, double, double>);
+    pHubBackingBufferForAllReduceT3.resize(PHUB_ALL_REDUCE_T3_KEY0_SIZE);
+    setenv("PLINK_SCHEDULE_TYPE", "allreduce", 1);
+    int reduceScatterCores = 1;
+    if (getenv("PHubMaximumCore") != nullptr)
+    {
+      reduceScatterCores = atoi(getenv("PHubMaximumCore"));
+      //sets phubcoreoffset to continue right after max core.
+      setenv("PHubCoreOffset", getenv("PHubMaximumCore"), 1);
+      setenv("PHubMaximumCore", "1", 1);
+    }
+    setenv("PHubChunkElementSize", "1", 1);
+    pHubAllReduceT3 = createPHubInstance(pHubBackingBufferForAllReduceT3.data(), 1, num_machines_, rank_, 1, PHubDataType::CUSTOM, PHUB_ALL_REDUCE_T3_KEY0_SIZE);
+    pHubAllReduceT3->SetReductionFunction(&PHubTuple3Reducer);
+    PHUB_CHECK(pHubAllReduceT3->keySizes.size() == 1 && (size_t)pHubAllReduceT3->keySizes.at(0) == pHubBackingBufferForAllReduceT3.size());
+
+    if (getenv("PHubMaximumCore") != nullptr)
+    {
+      //sets phubcoreoffset to continue right after max core.
+      auto reqCore = reduceScatterCores + 1; //this is for reduce scatter, plus the t3 phub
+      setenv("PHubCoreOffset", std::to_string(reqCore).c_str(), 1);
+    }
+    int PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE = 2 * SplitInfo::Size(this->config_->max_cat_threshold);
+    pHubBackingBufferForAllReduceSplitInfo.resize(PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE);
+    setenv("PHubChunkElementSize", "2", 1);
+    pHubAllReduceSplitInfo = createPHubInstance(pHubBackingBufferForAllReduceSplitInfo.data(), 2, num_machines_, rank_, 2, PHubDataType::CUSTOM, PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE / 2);
+    PHUB_CHECK(pHubAllReduceSplitInfo->keySizes.size() == 1 && (size_t)pHubAllReduceSplitInfo->keySizes.at(0) == pHubBackingBufferForAllReduceSplitInfo.size());
+
+    pHubAllReduceSplitInfo->SetReductionFunction(&PHubReducerForSyncUpGlobalBestSplit);
+    //both write to input_buffer.
+    pHubAllReduceSplitInfo->ApplicationSuppliedOutputAddrs.at(0) = input_buffer_.data(); //pHubBackingBufferForAllReduceSplitInfo.data();
+    pHubAllReduceSplitInfo->ApplicationSuppliedAddrs.at(0) = input_buffer_.data();
   }
-  //void getChunkedInformationGivenBuffer(
-  //void *ptr,
-  //size_t elements,
-  //size_t elementSize,
-  //int chunkElementCount,
-  //std::vector<size_t> &counts,
-  //std::vector<size_t> &bytes,
-  //std::vector<void *> keyAddrs);
-
-  //I need to figure out key ownership
-  PHUB_CHECK(numbin % chunkSize == 0);
-  int reduceScatterPerMachineKeyCount = numbin;
-  int reduceScatterTotalKeyCount = reduceScatterPerMachineKeyCount * num_machines_;
-  //here, getKeyOwnershipString is speaking PHub key, which is a collection of bins.
-  std::string reduceScatterSupplement = getKeyOwnershipString(num_machines_, reduceScatterPerMachineKeyCount / chunkSize);
-  setenv("PLINK_SCHEDULE_TYPE", "reducescatter", 1);
-  PHUB_CHECK(pHubBackingBufferForReduceScatter.size() == reduceScatterTotalKeyCount * sizeof(HistogramBinEntry));
-  pHubReduceScatter = createPHubInstance(pHubBackingBufferForReduceScatter.data(), reduceScatterTotalKeyCount, num_machines_, rank_, 0, PHubDataType::CUSTOM, sizeof(HistogramBinEntry), reduceScatterSupplement);
-  PHUB_CHECK(pHubReduceScatter->keySizes.size() == num_machines_ * numbin / chunkSize);
-  pHubReduceScatter->SetReductionFunction(&PHubHistogramBinEntrySumReducer);
-
-  const int PHUB_ALL_REDUCE_T3_KEY0_SIZE = sizeof(std::tuple<data_size_t, double, double>);
-  pHubBackingBufferForAllReduceT3.resize(PHUB_ALL_REDUCE_T3_KEY0_SIZE);
-  setenv("PLINK_SCHEDULE_TYPE", "allreduce", 1);
-  int reduceScatterCores = 1;
-  if (getenv("PHubMaximumCore") != nullptr)
-  {
-    reduceScatterCores = atoi(getenv("PHubMaximumCore"));
-    //sets phubcoreoffset to continue right after max core.
-    setenv("PHubCoreOffset", getenv("PHubMaximumCore"), 1);
-    setenv("PHubMaximumCore", "1", 1);
-  }
-  setenv("PHubChunkElementSize", "1", 1);
-  pHubAllReduceT3 = createPHubInstance(pHubBackingBufferForAllReduceT3.data(), 1, num_machines_, rank_, 1, PHubDataType::CUSTOM, PHUB_ALL_REDUCE_T3_KEY0_SIZE);
-  pHubAllReduceT3->SetReductionFunction(&PHubTuple3Reducer);
-  PHUB_CHECK(pHubAllReduceT3->keySizes.size() == 1 && (size_t)pHubAllReduceT3->keySizes.at(0) == pHubBackingBufferForAllReduceT3.size());
-
-  if (getenv("PHubMaximumCore") != nullptr)
-  {
-    //sets phubcoreoffset to continue right after max core.
-    auto reqCore = reduceScatterCores + 1; //this is for reduce scatter, plus the t3 phub
-    setenv("PHubCoreOffset", std::to_string(reqCore).c_str(), 1);
-  }
-  int PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE = 2 * SplitInfo::Size(this->config_->max_cat_threshold);
-  pHubBackingBufferForAllReduceSplitInfo.resize(PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE);
-  setenv("PHubChunkElementSize", "2", 1);
-  pHubAllReduceSplitInfo = createPHubInstance(pHubBackingBufferForAllReduceSplitInfo.data(), 2, num_machines_, rank_, 2, PHubDataType::CUSTOM, PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE / 2);
-  PHUB_CHECK(pHubAllReduceSplitInfo->keySizes.size() == 1 && (size_t)pHubAllReduceSplitInfo->keySizes.at(0) == pHubBackingBufferForAllReduceSplitInfo.size());
-
-  pHubAllReduceSplitInfo->SetReductionFunction(&PHubReducerForSyncUpGlobalBestSplit);
-  //both write to input_buffer.
-  pHubAllReduceSplitInfo->ApplicationSuppliedOutputAddrs.at(0) = input_buffer_.data(); //pHubBackingBufferForAllReduceSplitInfo.data();
-  pHubAllReduceSplitInfo->ApplicationSuppliedAddrs.at(0) = input_buffer_.data();
 }
 
 template <typename TREELEARNER_T>
@@ -145,10 +147,9 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::Init(const Dataset *train_data
   global_data_count_in_leaf_.resize(this->config_->num_leaves);
 
   auto commBackend = std::string(std::getenv("BENCHMARK_PREFERRED_BACKEND") == nullptr ? "" : std::getenv("BENCHMARK_PREFERRED_BACKEND"));
-  if (commBackend == "" || commBackend == "PHUB")
-  {
-    InitializePHub();
-  }
+
+  InitializePHub();
+  //}
 
   //reset real impl to use same size as PHub
   input_buffer_.resize(pHubBackingBufferForReduceScatter.size());
