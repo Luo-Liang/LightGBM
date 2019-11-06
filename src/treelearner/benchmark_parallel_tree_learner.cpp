@@ -76,7 +76,6 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::InitializePHub()
     //std::vector<size_t> &bytes,
     //std::vector<void *> keyAddrs);
 
-    /*
     //I need to figure out key ownership
     PHUB_CHECK(numbin % chunkSize == 0);
     int reduceScatterPerMachineKeyCount = numbin;
@@ -89,10 +88,10 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::InitializePHub()
     PHUB_CHECK(pHubReduceScatter->keySizes.size() == num_machines_ * numbin / chunkSize);
     pHubReduceScatter->SetReductionFunction(&PHubHistogramBinEntrySumReducer);
 
-    
+    /*
     const int PHUB_ALL_REDUCE_T3_KEY0_SIZE = sizeof(std::tuple<data_size_t, double, double>);
     pHubBackingBufferForAllReduceT3.resize(PHUB_ALL_REDUCE_T3_KEY0_SIZE);
-    setenv("PLINK_SCHEDULE_TYPE", "allreduce", 1);*/
+    setenv("PLINK_SCHEDULE_TYPE", "allreduce", 1);
     int reduceScatterCores = 1;
     if (getenv("PHubMaximumCore") != nullptr)
     {
@@ -101,12 +100,12 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::InitializePHub()
       setenv("PHubCoreOffset", getenv("PHubMaximumCore"), 1);
       setenv("PHubMaximumCore", "1", 1);
     }
-    /*
+    
     setenv("PHubChunkElementSize", "1", 1);
     pHubAllReduceT3 = createPHubInstance(pHubBackingBufferForAllReduceT3.data(), 1, num_machines_, rank_, 1, PHubDataType::CUSTOM, PHUB_ALL_REDUCE_T3_KEY0_SIZE);
     pHubAllReduceT3->SetReductionFunction(&PHubTuple3Reducer);
     PHUB_CHECK(pHubAllReduceT3->keySizes.size() == 1 && (size_t)pHubAllReduceT3->keySizes.at(0) == pHubBackingBufferForAllReduceT3.size());
-    */
+    
     if (getenv("PHubMaximumCore") != nullptr)
     {
       //sets phubcoreoffset to continue right after max core.
@@ -123,6 +122,7 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::InitializePHub()
     //both write to input_buffer.
     pHubAllReduceSplitInfo->ApplicationSuppliedOutputAddrs.at(0) = input_buffer_.data(); //pHubBackingBufferForAllReduceSplitInfo.data();
     pHubAllReduceSplitInfo->ApplicationSuppliedAddrs.at(0) = input_buffer_.data();
+    */
   }
 }
 
@@ -294,24 +294,23 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
   //   bin_size += num_bin * sizeof(HistogramBinEntry);
   // }
   // sync global data sumup info
-  return;
   std::tuple<data_size_t, double, double> data(this->smaller_leaf_splits_->num_data_in_leaf(),
                                                this->smaller_leaf_splits_->sum_gradients(), this->smaller_leaf_splits_->sum_hessians());
   //shadow operation. use this for correctness test.
   //change source direction.
   switch (benchmarkCommBackend)
   {
-  case BenchmarkPreferredBackend::PHUB:
-  {
-    pHubAllReduceT3->ApplicationSuppliedAddrs.at(0) = &data;       //&data1;
-    pHubAllReduceT3->ApplicationSuppliedOutputAddrs.at(0) = &data; //&data1;
-    COMPILER_BARRIER();
-    //fine, no race, because syncrhonziation points introduced by work queues.
-    EASY_BLOCK("PHub T3 AllReduce");
-    pHubAllReduceT3->Reduce();
-    EASY_END_BLOCK;
-    break;
-  }
+  // case BenchmarkPreferredBackend::PHUB:
+  // {
+  //   pHubAllReduceT3->ApplicationSuppliedAddrs.at(0) = &data;       //&data1;
+  //   pHubAllReduceT3->ApplicationSuppliedOutputAddrs.at(0) = &data; //&data1;
+  //   COMPILER_BARRIER();
+  //   //fine, no race, because syncrhonziation points introduced by work queues.
+  //   EASY_BLOCK("PHub T3 AllReduce");
+  //   pHubAllReduceT3->Reduce();
+  //   EASY_END_BLOCK;
+  //   break;
+  // }
   case BenchmarkPreferredBackend::DEFAULT:
   {
     int size = sizeof(data);
@@ -350,7 +349,6 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
 
   EASY_FUNCTION(profiler::colors::Magenta);
 
-
   // switch (benchmarkCommBackend)
   // {
   // case BenchmarkPreferredBackend::DEFAULT:
@@ -387,21 +385,21 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::FindBestSplitsFromHistograms(c
   //fprintf(stderr, "[%d]benchmarked tree learner . FindBestSplitsFromHistograms.418\n", Network::rank());
   //all ignored.
   // sync global best info
-  switch (benchmarkCommBackend)
-  {
-  case BenchmarkPreferredBackend::DEFAULT:
-  {
-    SyncUpGlobalBestSplit(input_buffer_.data(), input_buffer_.data(), &smaller_best_split, &larger_best_split, this->config_->max_cat_threshold);
-    break;
-  }
-  case BenchmarkPreferredBackend::PHUB:
-  {
-    SyncUpGlobalBestSplit(input_buffer_.data(), input_buffer_.data(), &smaller_best_split, &larger_best_split, this->config_->max_cat_threshold, pHubAllReduceSplitInfo);
-    break;
-  }
-  default:
-    break;
-  }
+  //switch (benchmarkCommBackend)
+  //{
+  //case BenchmarkPreferredBackend::DEFAULT:
+  //{
+  SyncUpGlobalBestSplit(input_buffer_.data(), input_buffer_.data(), &smaller_best_split, &larger_best_split, this->config_->max_cat_threshold);
+  //  break;
+  //}
+  //case BenchmarkPreferredBackend::PHUB:
+  //{
+  //  SyncUpGlobalBestSplit(input_buffer_.data(), input_buffer_.data(), &smaller_best_split, &larger_best_split, this->config_->max_cat_threshold, pHubAllReduceSplitInfo);
+  //  break;
+  //}
+  //default:
+  //   break;
+  //}
 }
 
 template <typename TREELEARNER_T>
