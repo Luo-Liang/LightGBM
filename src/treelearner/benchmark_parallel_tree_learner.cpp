@@ -371,7 +371,7 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
     break;
   }
 
-  //this->FindBestSplitsFromHistograms(this->is_feature_used_, true);
+  this->FindBestSplitsFromHistograms(this->is_feature_used_, true);
 }
 
 template <typename TREELEARNER_T>
