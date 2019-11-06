@@ -82,7 +82,7 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::InitializePHub()
     int reduceScatterTotalKeyCount = reduceScatterPerMachineKeyCount * num_machines_;
     //here, getKeyOwnershipString is speaking PHub key, which is a collection of bins.
     std::string reduceScatterSupplement = getKeyOwnershipString(num_machines_, reduceScatterPerMachineKeyCount / chunkSize);
-    setenv("PLINK_SCHEDULE_TYPE", "allreduce", 1);
+    setenv("PLINK_SCHEDULE_TYPE", "reducescatter", 1);
     PHUB_CHECK(pHubBackingBufferForReduceScatter.size() == reduceScatterTotalKeyCount * sizeof(HistogramBinEntry));
     pHubReduceScatter = createPHubInstance(pHubBackingBufferForReduceScatter.data(), reduceScatterTotalKeyCount, num_machines_, rank_, 0, PHubDataType::CUSTOM, sizeof(HistogramBinEntry), reduceScatterSupplement);
     PHUB_CHECK(pHubReduceScatter->keySizes.size() == num_machines_ * numbin / chunkSize);
