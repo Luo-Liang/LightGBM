@@ -83,7 +83,7 @@ void Network::Init(Config config)
     block_len_ = std::vector<comm_size_t>(num_machines_);
     buffer_size_ = 1024 * 1024;
     buffer_.resize(buffer_size_);
-    Log::Info("Local rank: %d, total number of machines: %d", rank_, num_machines_);
+    //Log::Info("Local rank: %d, total number of machines: %d", rank_, num_machines_);
   }
 }
 
@@ -100,7 +100,7 @@ void Network::Init(int num_machines, int rank,
     buffer_.resize(buffer_size_);
     reduce_scatter_ext_fun_ = reduce_scatter_ext_fun;
     allgather_ext_fun_ = allgather_ext_fun;
-    Log::Info("Local rank: %d, total number of machines: %d", rank_, num_machines_);
+    //Log::Info("Local rank: %d, total number of machines: %d", rank_, num_machines_);
   }
 }
 
@@ -377,6 +377,7 @@ void Network::ReduceScatter(char *input, comm_size_t input_size, int type_size,
                             const comm_size_t *block_start, const comm_size_t *block_len, char *output,
                             comm_size_t output_size, const ReduceFunction &reducer)
 {
+  static bool reduceScatterParadigmSignaled = false;
   //PrintTimestampToLog(rank_, "ReduceScatter");
   if (num_machines_ <= 1)
   {
