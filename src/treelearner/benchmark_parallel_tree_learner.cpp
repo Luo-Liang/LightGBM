@@ -46,12 +46,13 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::InitializePHub()
   // allocate buffer for communication
   auto chunkSize = atoi(pHubGetMandatoryEnvironmemtVariable("PHubChunkElementSize").c_str());
   pHubChunkSize = chunkSize;
-  size_t numbin = RoundUp(this->train_data_->NumTotalBin(), chunkSize);
   auto binCount = std::getenv("LIGHTGBM_BENCHMARK_BIN_COUNT");
   if(binCount != NULL)
   {
     numbin = atoi(binCount);
-  }
+  }  
+  size_t numbin = RoundUp(this->train_data_->NumTotalBin(), chunkSize);
+
   fprintf(stderr, "benchmarked [%d] numbin = %d, adjusted = %d. chunk = %d\n", rank_, (int)this->train_data_->NumTotalBin(), (int)numbin, (int)chunkSize);
   size_t buffer_size = numbin * sizeof(HistogramBinEntry);
   reduceScatterPerNodeBufferSize = buffer_size;
