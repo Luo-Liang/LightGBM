@@ -101,45 +101,44 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::InitializePHub()
     PHUB_CHECK(pHubReduceScatter->keySizes.size() == num_machines_ * numbin / chunkSize);
     pHubReduceScatter->SetReductionFunction(&PHubHistogramBinEntrySumReducer);
 
-    /*
     const int PHUB_ALL_REDUCE_T3_KEY0_SIZE = sizeof(std::tuple<data_size_t, double, double>);
     pHubBackingBufferForAllReduceT3.resize(PHUB_ALL_REDUCE_T3_KEY0_SIZE);
     setenv("PLINK_SCHEDULE_TYPE", "allreduce", 1);
     int reduceScatterCores = 1;
     if (getenv("PHubMaximumCore") != nullptr)
-  {
-    reduceScatterCores = atoi(getenv("PHubMaximumCore"));
-    //sets phubcoreoffset to continue right after max core.
-    if ("azure" == pHubGetOptionalEnvironmentVariable("PHubCoreAssignmentScheme"))
     {
-      setenv("PHubCoreOffset", std::to_string(reduceScatterCores * 2).c_str(), 1);
+      reduceScatterCores = atoi(getenv("PHubMaximumCore"));
+      //sets phubcoreoffset to continue right after max core.
+      if ("azure" == pHubGetOptionalEnvironmentVariable("PHubCoreAssignmentScheme"))
+      {
+        setenv("PHubCoreOffset", std::to_string(reduceScatterCores * 2).c_str(), 1);
+      }
+      else
+      {
+        //ec2 interleaves cpus. so it works automatically.
+        setenv("PHubCoreOffset", getenv("PHubMaximumCore"), 1);
+      }
+      setenv("PHubMaximumCore", "1", 1);
     }
-    else
-    {
-      //ec2 interleaves cpus. so it works automatically.
-      setenv("PHubCoreOffset", getenv("PHubMaximumCore"), 1);
-    }
-    setenv("PHubMaximumCore", "1", 1);
-  }
     setenv("PHubChunkElementSize", "1", 1);
     pHubAllReduceT3 = createPHubInstance(pHubBackingBufferForAllReduceT3.data(), 1, num_machines_, rank_, 1, PHubDataType::CUSTOM, PHUB_ALL_REDUCE_T3_KEY0_SIZE);
     pHubAllReduceT3->SetReductionFunction(&PHubTuple3Reducer);
     PHUB_CHECK(pHubAllReduceT3->keySizes.size() == 1 && (size_t)pHubAllReduceT3->keySizes.at(0) == pHubBackingBufferForAllReduceT3.size());
-    
-  if (getenv("PHubMaximumCore") != nullptr)
-  {
-    //sets phubcoreoffset to continue right after max core.
-    auto reqCore = reduceScatterCores + 1; //this is for reduce scatter, plus the t3 phub
-    if ("azure" == pHubGetOptionalEnvironmentVariable("PHubCoreAssignmentScheme"))
+
+    if (getenv("PHubMaximumCore") != nullptr)
     {
-      setenv("PHubCoreOffset", std::to_string(reqCore * 2).c_str(), 1);
+      //sets phubcoreoffset to continue right after max core.
+      auto reqCore = reduceScatterCores + 1; //this is for reduce scatter, plus the t3 phub
+      if ("azure" == pHubGetOptionalEnvironmentVariable("PHubCoreAssignmentScheme"))
+      {
+        setenv("PHubCoreOffset", std::to_string(reqCore * 2).c_str(), 1);
+      }
+      else
+      {
+        //ec2 interleaves cpus. so it works automatically.
+        setenv("PHubCoreOffset", std::to_string(reqCore).c_str(), 1);
+      }
     }
-    else
-    {
-      //ec2 interleaves cpus. so it works automatically.
-      setenv("PHubCoreOffset", std::to_string(reqCore).c_str(), 1);
-    }
-  }
     int PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE = 2 * SplitInfo::Size(this->config_->max_cat_threshold);
     pHubBackingBufferForAllReduceSplitInfo.resize(PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE);
     setenv("PHubChunkElementSize", "2", 1);
@@ -150,7 +149,6 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::InitializePHub()
     //both write to input_buffer.
     pHubAllReduceSplitInfo->ApplicationSuppliedOutputAddrs.at(0) = input_buffer_.data(); //pHubBackingBufferForAllReduceSplitInfo.data();
     pHubAllReduceSplitInfo->ApplicationSuppliedAddrs.at(0) = input_buffer_.data();
-    */
   }
 }
 
@@ -341,6 +339,7 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
   //   break;
   // }
   case BenchmarkPreferredBackend::DEFAULT:
+  default:
   {
     int size = sizeof(data);
     Network::Allreduce(input_buffer_.data(), size, sizeof(std::tuple<data_size_t, double, double>), output_buffer_.data(), [](const char *src, char *dst, int type_size, comm_size_t len) {
@@ -361,8 +360,6 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
     });
     break;
   }
-  default:
-    break;
   }
 
   // set global sumup info
@@ -380,14 +377,6 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
 
   switch (benchmarkCommBackend)
   {
-  case BenchmarkPreferredBackend::DEFAULT:
-  {
-    EASY_BLOCK("Default_ReduceScatter");
-    Network::ReduceScatter(input_buffer_.data(), reduce_scatter_size_, sizeof(HistogramBinEntry), block_start_.data(),
-                           block_len_.data(), output_buffer_.data(), static_cast<comm_size_t>(output_buffer_.size()), &HistogramBinEntry::SumReducer);
-    EASY_END_BLOCK;
-    break;
-  }
   case BenchmarkPreferredBackend::PHUB:
   {
     EASY_BLOCK("PHub_ReduceScatter");
@@ -396,7 +385,14 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::FindBestSplits()
     break;
   }
   default:
+  case BenchmarkPreferredBackend::DEFAULT:
+  {
+    EASY_BLOCK("Default_ReduceScatter");
+    Network::ReduceScatter(input_buffer_.data(), reduce_scatter_size_, sizeof(HistogramBinEntry), block_start_.data(),
+                           block_len_.data(), output_buffer_.data(), static_cast<comm_size_t>(output_buffer_.size()), &HistogramBinEntry::SumReducer);
+    EASY_END_BLOCK;
     break;
+  }
   }
 
   this->FindBestSplitsFromHistograms(this->is_feature_used_, true);
