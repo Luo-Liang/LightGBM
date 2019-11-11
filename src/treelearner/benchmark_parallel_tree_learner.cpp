@@ -107,24 +107,39 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::InitializePHub()
     setenv("PLINK_SCHEDULE_TYPE", "allreduce", 1);
     int reduceScatterCores = 1;
     if (getenv("PHubMaximumCore") != nullptr)
+  {
+    reduceScatterCores = atoi(getenv("PHubMaximumCore"));
+    //sets phubcoreoffset to continue right after max core.
+    if ("azure" == pHubGetOptionalEnvironmentVariable("PHubCoreAssignmentScheme"))
     {
-      reduceScatterCores = atoi(getenv("PHubMaximumCore"));
-      //sets phubcoreoffset to continue right after max core.
-      setenv("PHubCoreOffset", getenv("PHubMaximumCore"), 1);
-      setenv("PHubMaximumCore", "1", 1);
+      setenv("PHubCoreOffset", std::to_string(reduceScatterCores * 2).c_str(), 1);
     }
-    
+    else
+    {
+      //ec2 interleaves cpus. so it works automatically.
+      setenv("PHubCoreOffset", getenv("PHubMaximumCore"), 1);
+    }
+    setenv("PHubMaximumCore", "1", 1);
+  }
     setenv("PHubChunkElementSize", "1", 1);
     pHubAllReduceT3 = createPHubInstance(pHubBackingBufferForAllReduceT3.data(), 1, num_machines_, rank_, 1, PHubDataType::CUSTOM, PHUB_ALL_REDUCE_T3_KEY0_SIZE);
     pHubAllReduceT3->SetReductionFunction(&PHubTuple3Reducer);
     PHUB_CHECK(pHubAllReduceT3->keySizes.size() == 1 && (size_t)pHubAllReduceT3->keySizes.at(0) == pHubBackingBufferForAllReduceT3.size());
     
-    if (getenv("PHubMaximumCore") != nullptr)
+  if (getenv("PHubMaximumCore") != nullptr)
+  {
+    //sets phubcoreoffset to continue right after max core.
+    auto reqCore = reduceScatterCores + 1; //this is for reduce scatter, plus the t3 phub
+    if ("azure" == pHubGetOptionalEnvironmentVariable("PHubCoreAssignmentScheme"))
     {
-      //sets phubcoreoffset to continue right after max core.
-      auto reqCore = reduceScatterCores + 1; //this is for reduce scatter, plus the t3 phub
+      setenv("PHubCoreOffset", std::to_string(reqCore * 2).c_str(), 1);
+    }
+    else
+    {
+      //ec2 interleaves cpus. so it works automatically.
       setenv("PHubCoreOffset", std::to_string(reqCore).c_str(), 1);
     }
+  }
     int PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE = 2 * SplitInfo::Size(this->config_->max_cat_threshold);
     pHubBackingBufferForAllReduceSplitInfo.resize(PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE);
     setenv("PHubChunkElementSize", "2", 1);

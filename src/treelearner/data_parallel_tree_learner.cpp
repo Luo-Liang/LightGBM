@@ -63,8 +63,6 @@ DataParallelTreeLearner<TREELEARNER_T>::~DataParallelTreeLearner()
     }
   }*/
 
-
-
 template <typename TREELEARNER_T>
 void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
 {
@@ -122,7 +120,15 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
   {
     reduceScatterCores = atoi(getenv("PHubMaximumCore"));
     //sets phubcoreoffset to continue right after max core.
-    setenv("PHubCoreOffset", getenv("PHubMaximumCore"), 1);
+    if ("azure" == pHubGetOptionalEnvironmentVariable("PHubCoreAssignmentScheme"))
+    {
+      setenv("PHubCoreOffset", std::to_string(reduceScatterCores * 2).c_str(), 1);
+    }
+    else
+    {
+      //ec2 interleaves cpus. so it works automatically.
+      setenv("PHubCoreOffset", getenv("PHubMaximumCore"), 1);
+    }
     setenv("PHubMaximumCore", "1", 1);
   }
   setenv("PHubChunkElementSize", "1", 1);
@@ -134,7 +140,15 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
   {
     //sets phubcoreoffset to continue right after max core.
     auto reqCore = reduceScatterCores + 1; //this is for reduce scatter, plus the t3 phub
-    setenv("PHubCoreOffset", std::to_string(reqCore).c_str(), 1);
+    if ("azure" == pHubGetOptionalEnvironmentVariable("PHubCoreAssignmentScheme"))
+    {
+      setenv("PHubCoreOffset", std::to_string(reqCore * 2).c_str(), 1);
+    }
+    else
+    {
+      //ec2 interleaves cpus. so it works automatically.
+      setenv("PHubCoreOffset", std::to_string(reqCore).c_str(), 1);
+    }
   }
   int PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE = 2 * SplitInfo::Size(this->config_->max_cat_threshold);
   pHubBackingBufferForAllReduceSplitInfo.resize(PHUB_ALL_REDUCE_SPLITINFO_KEY0_SIZE);
