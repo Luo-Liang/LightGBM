@@ -29,7 +29,6 @@ comm_size_t Network::buffer_size_ = 0;
 std::vector<char> Network::buffer_;
 ReduceScatterFunction Network::reduce_scatter_ext_fun_ = nullptr;
 AllgatherFunction Network::allgather_ext_fun_ = nullptr;
-bool CommParadigmSignaled = false;
 
 size_t Network::GetGlobalNetworkTransferSize()
 {
@@ -118,22 +117,23 @@ void Network::Allreduce(char *input, comm_size_t input_size, int type_size, char
   const comm_size_t kRingThreshold = 10 * 1024 * 1024; // 10MB
   const int kRingNodeThreshold = 64;
   comm_size_t count = input_size / type_size;
+  static bool CommParadigmSignaled = false;
 
-  if (CommParadigmSignaled == false)
+  if (CommParadigmSignaled == false && rank_ == 0)
   {
     CommParadigmSignaled = true;
     comm_size_t all_size = num_machines_ * input_size;
     if (all_size > kRingThreshold && num_machines_ < kRingNodeThreshold)
     {
-      printf("[%d] allreduce using ring\n", rank_);
+      fprintf(stderr, "information: allreduce using ring\n");
     }
     else if (recursive_halving_map_.is_power_of_2)
     {
-      printf("[%d] allreduce using HD\n", rank_);
+      fprintf(stderr, "information: allreduce using HD\n");
     }
     else
     {
-      printf("[%d] allreduce using bruck\n", rank_);
+      fprintf(stderr, "information: allreduce using bruck\n");
     }
   }
   // if small package or small count , do it by all gather.(reduce the communication times.)
@@ -205,7 +205,7 @@ void Network::CheckOnlyOneThreadTouching()
   std::lock_guard<std::mutex> g(networkGuard);
   networkTIDs.insert(std::this_thread::get_id());
   auto sz = networkTIDs.size();
-  if(sz != 1)
+  if (sz != 1)
   {
     Log::Fatal("Network class is touched by more than 1 thread.");
   }
@@ -393,21 +393,41 @@ void Network::ReduceScatter(char *input, comm_size_t input_size, int type_size,
     const comm_size_t kRingThreshold = 10 * 1024 * 1024; // 10MB
     if (recursive_halving_map_.is_power_of_2 || input_size < kRingThreshold)
     {
+      if (rank() == 0 && reduceScatterParadigmSignaled == false)
+      {
+        fprintf(stderr, "information: reduce scatter with HD\n");
+        reduceScatterParadigmSignaled = true;
+      }
       //printf("[%d]reduce scatter with HD. input_size = %d\n", rank_, (int)input_size);
       ReduceScatterRecursiveHalving(input, input_size, type_size, block_start, block_len, output, output_size, reducer);
     }
     else
     {
+      if (rank() == 0 && reduceScatterParadigmSignaled == false)
+      {
+        fprintf(stderr, "information: reduce scatter with RING\n");
+        reduceScatterParadigmSignaled = true;
+      }
       //printf("[%d]reduce scatter with ring size = %d.\n", rank_, (int)input_size);
       ReduceScatterRing(input, input_size, type_size, block_start, block_len, output, output_size, reducer);
     }
   }
   else if (collective == PreferredCollectives::RING)
   {
+    if (rank() == 0 && reduceScatterParadigmSignaled == false)
+    {
+      fprintf(stderr, "information: reduce scatter with RING\n");
+      reduceScatterParadigmSignaled = true;
+    }
     ReduceScatterRing(input, input_size, type_size, block_start, block_len, output, output_size, reducer);
   }
   else if (collective == PreferredCollectives::HALVING_DOUBLING)
   {
+    if (rank() == 0 && reduceScatterParadigmSignaled == false)
+    {
+      fprintf(stderr, "information: reduce scatter with HD\n");
+      reduceScatterParadigmSignaled = true;
+    }
     ReduceScatterRecursiveHalving(input, input_size, type_size, block_start, block_len, output, output_size, reducer);
   }
   else

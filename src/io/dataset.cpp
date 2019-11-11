@@ -637,7 +637,7 @@ void Dataset::SaveBinaryFile(const char* bin_filename) {
 
   if (VirtualFileWriter::Exists(bin_filename)) {
     is_file_existed = true;
-    Log::Warning("File %s exists, cannot save binary to it", bin_filename);
+    //Log::Warning("File %s exists, cannot save binary to it", bin_filename);
   }
 
   if (!is_file_existed) {

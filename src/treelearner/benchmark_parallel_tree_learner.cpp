@@ -54,11 +54,13 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::InitializePHub()
   }
   else
   {
-    numbin = this->train_data_->NumTotalBin();
+    numbin = 262144;
   }
   numbin = RoundUp(numbin, chunkSize);
-
-  fprintf(stderr, "benchmarked [%d] numbin = %d, adjusted = %d. chunk = %d\n", rank_, (int)this->train_data_->NumTotalBin(), (int)numbin, (int)chunkSize);
+  if (Network::rank() == 0)
+  {
+    fprintf(stderr, "benchmarked [%d] numbin = %d, adjusted = %d. chunk = %d\n", rank_, (int)this->train_data_->NumTotalBin(), (int)numbin, (int)chunkSize);
+  }
   size_t buffer_size = numbin * sizeof(HistogramBinEntry);
   reduceScatterPerNodeBufferSize = buffer_size;
   auto total_buffer_size = buffer_size * num_machines_;
