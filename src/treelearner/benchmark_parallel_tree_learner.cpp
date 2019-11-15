@@ -410,21 +410,20 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::FindBestSplitsFromHistograms(c
   //fprintf(stderr, "[%d]benchmarked tree learner . FindBestSplitsFromHistograms.418\n", Network::rank());
   //all ignored.
   // sync global best info
-  //switch (benchmarkCommBackend)
-  //{
-  //case BenchmarkPreferredBackend::DEFAULT:
-  //{
-  SyncUpGlobalBestSplit(input_buffer_.data(), input_buffer_.data(), &smaller_best_split, &larger_best_split, this->config_->max_cat_threshold);
-  //  break;
-  //}
-  //case BenchmarkPreferredBackend::PHUB:
-  //{
-  //  SyncUpGlobalBestSplit(input_buffer_.data(), input_buffer_.data(), &smaller_best_split, &larger_best_split, this->config_->max_cat_threshold, pHubAllReduceSplitInfo);
-  //  break;
-  //}
-  //default:
-  //   break;
-  //}
+  switch (benchmarkCommBackend)
+  {
+  case BenchmarkPreferredBackend::PHUB:
+  {
+    SyncUpGlobalBestSplit(input_buffer_.data(), input_buffer_.data(), &smaller_best_split, &larger_best_split, this->config_->max_cat_threshold, pHubAllReduceSplitInfo);
+    break;
+  }
+  default:
+  case BenchmarkPreferredBackend::DEFAULT:
+  {
+    SyncUpGlobalBestSplit(input_buffer_.data(), input_buffer_.data(), &smaller_best_split, &larger_best_split, this->config_->max_cat_threshold);
+    break;
+  }
+  }
 }
 
 template <typename TREELEARNER_T>
