@@ -320,7 +320,7 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
   //   bin_size += num_bin * sizeof(HistogramBinEntry);
   // }
   // sync global data sumup info
-  //return;
+  return;
   std::tuple<data_size_t, double, double> data(this->smaller_leaf_splits_->num_data_in_leaf(),
                                                this->smaller_leaf_splits_->sum_gradients(), this->smaller_leaf_splits_->sum_hessians());
   //shadow operation. use this for correctness test.
