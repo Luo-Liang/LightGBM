@@ -467,13 +467,9 @@ bool MultiNodeBenchmark::TrainOneIter(const score_t *gradients, const score_t *h
     {
         const size_t bias = static_cast<size_t>(cur_tree_id) * num_data_;
         std::unique_ptr<Tree> new_tree(new Tree(2));
-        if (train_data_->num_features() > 0)
-        {
-            auto grad = gradients + bias;
-            auto hess = hessians + bias;
-            new_tree.reset(tree_learner_->Train(grad, hess, is_constant_hessian_, forced_splits_json_));
-        }
-
+        auto grad = gradients + bias;
+        auto hess = hessians + bias;
+        new_tree.reset(tree_learner_->Train(grad, hess, is_constant_hessian_, forced_splits_json_));
         // add model
         models_.push_back(std::move(new_tree));
     }
