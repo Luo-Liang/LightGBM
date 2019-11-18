@@ -100,7 +100,7 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::InitializePHub()
     pHubReduceScatter = createPHubInstance(pHubBackingBufferForReduceScatter.data(), reduceScatterTotalKeyCount, num_machines_, rank_, 0, PHubDataType::CUSTOM, sizeof(HistogramBinEntry), reduceScatterSupplement);
     PHUB_CHECK(pHubReduceScatter->keySizes.size() == num_machines_ * numbin / chunkSize);
     pHubReduceScatter->SetReductionFunction(&PHubHistogramBinEntrySumReducer);
-
+    return;
     const int PHUB_ALL_REDUCE_T3_KEY0_SIZE = sizeof(std::tuple<data_size_t, double, double>);
     pHubBackingBufferForAllReduceT3.resize(PHUB_ALL_REDUCE_T3_KEY0_SIZE);
     setenv("PLINK_SCHEDULE_TYPE", "allreduce", 1);
