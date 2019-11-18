@@ -8,3 +8,4 @@ make -j$(nproc) > /dev/null
 cd ..
 python postbuild.py
 OUTPUT=`date; hostname;`
+echo $OUTPUT
