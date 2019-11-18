@@ -4,7 +4,7 @@ cd build
 make clean
 cmake -DUSE_MPI=1  ..
 #cmake ..
-make -j$(nproc)
+make -j$(nproc) > /dev/null
 cd ..
 python postbuild.py
-date
+OUTPUT=`date; hostname;`
