@@ -7,3 +7,4 @@ cmake -DUSE_MPI=1  ..
 make -j$(nproc)
 cd ..
 python postbuild.py
+date
