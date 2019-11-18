@@ -320,14 +320,12 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
   //   bin_size += num_bin * sizeof(HistogramBinEntry);
   // }
   // sync global data sumup info
-  return;
+  //return;
   std::tuple<data_size_t, double, double> data(this->smaller_leaf_splits_->num_data_in_leaf(),
                                                this->smaller_leaf_splits_->sum_gradients(), this->smaller_leaf_splits_->sum_hessians());
   //shadow operation. use this for correctness test.
   //change source direction.
-  switch (benchmarkCommBackend)
-  {
-  case BenchmarkPreferredBackend::PHUB:
+  if (benchmarkCommBackend == BenchmarkPreferredBackend::PHUB && pHubAllReduceT3 != nullptr)
   {
     pHubAllReduceT3->ApplicationSuppliedAddrs.at(0) = &data;       //&data1;
     pHubAllReduceT3->ApplicationSuppliedOutputAddrs.at(0) = &data; //&data1;
@@ -336,10 +334,8 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
     EASY_BLOCK("PHub T3 AllReduce");
     pHubAllReduceT3->Reduce();
     EASY_END_BLOCK;
-    break;
   }
-  case BenchmarkPreferredBackend::DEFAULT:
-  default:
+  else
   {
     int size = sizeof(data);
     Network::Allreduce(input_buffer_.data(), size, sizeof(std::tuple<data_size_t, double, double>), output_buffer_.data(), [](const char *src, char *dst, int type_size, comm_size_t len) {
@@ -358,8 +354,6 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
         used_size += type_size;
       }
     });
-    break;
-  }
   }
 
   // set global sumup info
