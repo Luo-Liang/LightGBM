@@ -112,6 +112,8 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
   PHUB_CHECK(pHubReduceScatter->keySizes.size() == num_machines_ * numbin / chunkSize);
   pHubReduceScatter->SetReductionFunction(&PHubHistogramBinEntrySumReducer);
 
+  //RETURN HERE 
+  return;
   const int PHUB_ALL_REDUCE_T3_KEY0_SIZE = sizeof(std::tuple<data_size_t, double, double>);
   pHubBackingBufferForAllReduceT3.resize(PHUB_ALL_REDUCE_T3_KEY0_SIZE);
   setenv("PLINK_SCHEDULE_TYPE", "allreduce", 1);
@@ -302,41 +304,42 @@ void DataParallelTreeLearner<TREELEARNER_T>::BeforeTrain()
   // sync global data sumup info
   std::tuple<data_size_t, double, double> data(this->smaller_leaf_splits_->num_data_in_leaf(),
                                                this->smaller_leaf_splits_->sum_gradients(), this->smaller_leaf_splits_->sum_hessians());
-  //  int size = sizeof(data);
-  // auto data1 = data;
-  // std::memcpy(input_buffer_.data(), &data, size);
-  // Network::Allreduce(input_buffer_.data(), size, sizeof(std::tuple<data_size_t, double, double>), output_buffer_.data(), [](const char *src, char *dst, int type_size, comm_size_t len) {
-  //   comm_size_t used_size = 0;
-  //   const std::tuple<data_size_t, double, double> *p1;
-  //   std::tuple<data_size_t, double, double> *p2;
-  //   while (used_size < len)
-  //   {
-  //     p1 = reinterpret_cast<const std::tuple<data_size_t, double, double> *>(src);
-  //     p2 = reinterpret_cast<std::tuple<data_size_t, double, double> *>(dst);
-  //     fprintf(stderr, "[STD:%d.%d] %d, %f, %f + %d, %f, %f\n", Network::rank(), used_size, std::get<0>(*p2), std::get<1>(*p2), std::get<2>(*p2), std::get<0>(*p1), std::get<1>(*p1), std::get<2>(*p1));
+  int size = sizeof(data);
+  //auto data1 = data;
+  std::memcpy(input_buffer_.data(), &data, size);
+  Network::Allreduce(input_buffer_.data(), size, sizeof(std::tuple<data_size_t, double, double>), output_buffer_.data(), [](const char *src, char *dst, int type_size, comm_size_t len) {
+    comm_size_t used_size = 0;
+    const std::tuple<data_size_t, double, double> *p1;
+    std::tuple<data_size_t, double, double> *p2;
+    while (used_size < len)
+    {
+      p1 = reinterpret_cast<const std::tuple<data_size_t, double, double> *>(src);
+      p2 = reinterpret_cast<std::tuple<data_size_t, double, double> *>(dst);
+      //     fprintf(stderr, "[STD:%d.%d] %d, %f, %f + %d, %f, %f\n", Network::rank(), used_size, std::get<0>(*p2), std::get<1>(*p2), std::get<2>(*p2), std::get<0>(*p1), std::get<1>(*p1), std::get<2>(*p1));
 
-  //     std::get<0>(*p2) = std::get<0>(*p2) + std::get<0>(*p1);
-  //     std::get<1>(*p2) = std::get<1>(*p2) + std::get<1>(*p1);
-  //     std::get<2>(*p2) = std::get<2>(*p2) + std::get<2>(*p1);
+      std::get<0>(*p2) = std::get<0>(*p2) + std::get<0>(*p1);
+      std::get<1>(*p2) = std::get<1>(*p2) + std::get<1>(*p1);
+      std::get<2>(*p2) = std::get<2>(*p2) + std::get<2>(*p1);
 
-  //     fprintf(stderr, "   [STD:%d.%d] currsum = %d, %f, %f\n", Network::rank(), used_size, std::get<0>(*p2), std::get<1>(*p2), std::get<2>(*p2));
+      //fprintf(stderr, "   [STD:%d.%d] currsum = %d, %f, %f\n", Network::rank(), used_size, std::get<0>(*p2), std::get<1>(*p2), std::get<2>(*p2));
 
-  //     src += type_size;
-  //     dst += type_size;
-  //     used_size += type_size;
-  //   }
-  // });
-  // std::memcpy(reinterpret_cast<void *>(&data), output_buffer_.data(), size);
+      src += type_size;
+      dst += type_size;
+      used_size += type_size;
+    }
+  });
+  std::memcpy(reinterpret_cast<void *>(&data), output_buffer_.data(), size);
 
   //shadow operation. use this for correctness test.
   //change source direction.
-  pHubAllReduceT3->ApplicationSuppliedAddrs.at(0) = &data;       //&data1;
-  pHubAllReduceT3->ApplicationSuppliedOutputAddrs.at(0) = &data; //&data1;
-  COMPILER_BARRIER();
+  //pHubAllReduceT3->ApplicationSuppliedAddrs.at(0) = &data;       //&data1;
+  //pHubAllReduceT3->ApplicationSuppliedOutputAddrs.at(0) = &data; //&data1;
+  //COMPILER_BARRIER();
   //fine, no race, because syncrhonziation points introduced by work queues.
-  EASY_BLOCK("T3 AllReduce");
-  pHubAllReduceT3->Reduce();
-  EASY_END_BLOCK;
+  //EASY_BLOCK("T3 AllReduce");
+  //pHubAllReduceT3->Reduce();
+  //EASY_END_BLOCK;
+
   //PHUB_CHECK(std::get<0>(data1) == std::get<0>(data)) << std::get<0>(data1) << " vs " << std::get<0>(data);
   //PHUB_CHECK_VERY_CLOSE((double)std::get<1>(data1), (double)std::get<1>(data)) << std::get<1>(data1) << " vs " << std::get<1>(data);
   //PHUB_CHECK_VERY_CLOSE((double)std::get<2>(data1), (double)std::get<2>(data)) << std::get<2>(data1) << " vs " << std::get<2>(data);
@@ -570,7 +573,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::FindBestSplitsFromHistograms(const 
   }
 
   // sync global best info
-  SyncUpGlobalBestSplit(input_buffer_.data(), input_buffer_.data(), &smaller_best_split, &larger_best_split, this->config_->max_cat_threshold, pHubAllReduceSplitInfo);
+  SyncUpGlobalBestSplit(input_buffer_.data(), input_buffer_.data(), &smaller_best_split, &larger_best_split, this->config_->max_cat_threshold); //, pHubAllReduceSplitInfo);
 
   // set best split
   this->best_split_per_leaf_[this->smaller_leaf_splits_->LeafIndex()] = smaller_best_split;
