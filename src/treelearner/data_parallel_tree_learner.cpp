@@ -22,9 +22,18 @@ DataParallelTreeLearner<TREELEARNER_T>::DataParallelTreeLearner(const Config *co
 template <typename TREELEARNER_T>
 DataParallelTreeLearner<TREELEARNER_T>::~DataParallelTreeLearner()
 {
-  pHubAllReduceT3->FastTerminate();
-  pHubAllReduceSplitInfo->FastTerminate();
-  pHubReduceScatter->FastTerminate();
+  if (pHubAllReduceT3 != nullptr)
+  {
+    pHubAllReduceT3->FastTerminate();
+  }
+  if (pHubAllReduceSplitInfo != nullptr)
+  {
+    pHubAllReduceSplitInfo->FastTerminate();
+  }
+  if (pHubReduceScatter != nullptr)
+  {
+    pHubReduceScatter->FastTerminate();
+  }
 }
 
 /*  inline static void SumReducer(const char *src, char *dst, int type_size, comm_size_t len) {
@@ -112,7 +121,7 @@ void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
   PHUB_CHECK(pHubReduceScatter->keySizes.size() == num_machines_ * numbin / chunkSize);
   pHubReduceScatter->SetReductionFunction(&PHubHistogramBinEntrySumReducer);
 
-  //RETURN HERE 
+  //RETURN HERE
   return;
   const int PHUB_ALL_REDUCE_T3_KEY0_SIZE = sizeof(std::tuple<data_size_t, double, double>);
   pHubBackingBufferForAllReduceT3.resize(PHUB_ALL_REDUCE_T3_KEY0_SIZE);
