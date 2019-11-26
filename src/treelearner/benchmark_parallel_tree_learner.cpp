@@ -54,7 +54,7 @@ void BenchmarkParallelTreeLearner<TREELEARNER_T>::InitializePHub()
   }
   else
   {
-    numbin = 262144;
+    numbin = RoundUp(this->train_data_->NumTotalBin(), chunkSize);
   }
   numbin = RoundUp(numbin, chunkSize);
   if (Network::rank() == 0)
