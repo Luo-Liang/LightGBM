@@ -8,7 +8,7 @@
 
 int main(int argc, char **argv)
 {
-  EASY_PROFILER_ENABLE;
+  //EASY_PROFILER_ENABLE;
   try
   {
     LightGBM::Application app(argc, argv);
