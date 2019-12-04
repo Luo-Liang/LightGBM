@@ -41,6 +41,9 @@ ADD_DEFINITIONS(-DBUILD_WITH_EASY_PROFILER)
 include_directories(easy_profiler/easy_profiler_core/include)
 add_subdirectory(easy_profiler)
 
+#enable VTune
+include_directories(/home/ubuntu/intel/vtune_amplifier/include/)
+
 
 if(USE_SWIG)
   find_package(SWIG REQUIRED)
@@ -177,11 +180,21 @@ file(GLOB SOURCES
     src/treelearner/*.cpp
 )
 
+#link_directories(/home/ubuntu/intel/vtune_amplifier/lib64)
+
 add_executable(lightgbm src/main.cpp ${SOURCES})
 
 add_library(_lightgbm SHARED src/c_api.cpp src/lightgbm_R.cpp ${SOURCES})
 target_link_libraries(_lightgbm easy_profiler)
 target_link_libraries(lightgbm easy_profiler)
+
+target_link_libraries(_lightgbm /home/ubuntu/intel/vtune_amplifier/lib64/libittnotify.a)
+target_link_libraries(lightgbm /home/ubuntu/intel/vtune_amplifier/lib64/libittnotify.a)
+target_link_libraries(lightgbm dl)
+target_link_libraries(_lightgbm dl)
+
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
+
 
 if(MSVC)
     set_target_properties(_lightgbm PROPERTIES OUTPUT_NAME "lib_lightgbm")
