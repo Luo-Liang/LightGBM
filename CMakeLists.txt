@@ -180,7 +180,6 @@ file(GLOB SOURCES
     src/treelearner/*.cpp
 )
 
-#link_directories(/home/ubuntu/intel/vtune_amplifier/lib64)
 
 add_executable(lightgbm src/main.cpp ${SOURCES})
 
