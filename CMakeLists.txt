@@ -42,7 +42,7 @@ include_directories(easy_profiler/easy_profiler_core/include)
 add_subdirectory(easy_profiler)
 
 #enable VTune
-include_directories(/home/ubuntu/intel/vtune_amplifier/include/)
+include_directories(/opt/intel/vtune_amplifier/include/)
 
 
 if(USE_SWIG)
@@ -187,8 +187,8 @@ add_library(_lightgbm SHARED src/c_api.cpp src/lightgbm_R.cpp ${SOURCES})
 target_link_libraries(_lightgbm easy_profiler)
 target_link_libraries(lightgbm easy_profiler)
 
-target_link_libraries(_lightgbm /home/ubuntu/intel/vtune_amplifier/lib64/libittnotify.a)
-target_link_libraries(lightgbm /home/ubuntu/intel/vtune_amplifier/lib64/libittnotify.a)
+target_link_libraries(_lightgbm /opt/intel/vtune_amplifier/lib64/libittnotify.a)
+target_link_libraries(lightgbm /opt/intel/vtune_amplifier/lib64/libittnotify.a)
 target_link_libraries(lightgbm dl)
 target_link_libraries(_lightgbm dl)
 
