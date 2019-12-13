@@ -346,10 +346,10 @@ void GBDT::Train(int snapshot_freq, const std::string &model_output_path)
   {
     EASY_VALUE("iter", iter);
     is_finished = TrainOneIter(nullptr, nullptr);
-    if (!is_finished)
+    /*if (!is_finished)
     {
       is_finished = EvalAndCheckEarlyStopping();
-    }
+      }*/
     auto end_time = std::chrono::steady_clock::now();
     // output used time per iteration
     Log::Info("%f seconds elapsed, finished iteration %d", std::chrono::duration<double, std::milli>(end_time - start_time) * 1e-3, iter + 1);
