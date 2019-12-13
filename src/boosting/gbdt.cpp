@@ -345,7 +345,7 @@ void GBDT::Train(int snapshot_freq, const std::string &model_output_path)
   for (int iter = 0; iter < config_->num_iterations && !is_finished; ++iter)
   {
     EASY_VALUE("iter", iter);
-    is_finished = TrainOneIter(nullptr, nullptr);
+    TrainOneIter(nullptr, nullptr);
     /*if (!is_finished)
     {
       is_finished = EvalAndCheckEarlyStopping();
