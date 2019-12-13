@@ -343,10 +343,10 @@ void GBDT::Train(int snapshot_freq, const std::string &)
     Timer t;
     is_finished = TrainOneIter(nullptr, nullptr);
     spans.push_back(t.s());
-    if (!is_finished)
+    /*if (!is_finished)
     {
       is_finished = EvalAndCheckEarlyStopping();
-    }
+      }*/
     //auto end_time = std::chrono::steady_clock::now();
     // output used time per iteration
     //auto totalComm = Network::GetNetworkTime(NetworkTimeType::EXCLUSIVESENDRECV);
