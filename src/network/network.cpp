@@ -479,11 +479,11 @@ void Network::ReduceScatterRecursiveHalving(char *input, comm_size_t input_size,
       }
       // send and recv at same time
       linkers_->SendRecv(target, input + block_start[send_block_start], send_size, target, output, need_recv_cnt);
-      fprintf(stderr, "%d <=> %d\n", rank(), target);
+      //fprintf(stderr, "%d <=> %d\n", rank(), target);
       // reduce
       reducer(output, input + block_start[recv_block_start], type_size, need_recv_cnt);
     }
-    fprintf(stderr, "EOF\n");
+    //fprintf(stderr, "EOF\n");
   }
   if (!recursive_halving_map_.is_power_of_2)
   {
