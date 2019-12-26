@@ -993,7 +993,7 @@ void DatasetLoader::ConstructBinMappersFromTextData(int rank, int num_machines, 
     comm_size_t buffer_size = type_size * num_total_features;
     if(buffer_size  < 0)
     {
-      fprintf(stderr, "type size = %d, with total feature = %d. mult = %d\n", type_size, total_num_feature, buffer_size);
+      fprintf(stderr, "type size = %d, with total feature = %d. mult = %d\n", type_size, num_total_feature, buffer_size);
     }
 
     CHECK(buffer_size >= 0);
