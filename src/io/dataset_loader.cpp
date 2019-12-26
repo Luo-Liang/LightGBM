@@ -658,6 +658,10 @@ Dataset* DatasetLoader::CostructFromSampleData(double** sample_values,
     int type_size = BinMapper::SizeForSpecificBin(max_bin);
     // since sizes of different feature may not be same, we expand all bin mapper to type_size
     comm_size_t buffer_size = type_size * total_num_feature;
+    if(buffer_size  < 0)
+    {
+      fprintf(stderr, "type size = %d, with total feature = %d. mult = %d\n", type_size, total_num_feature, buffer_size);
+    }
     CHECK(buffer_size >= 0);
     auto input_buffer = std::vector<char>(buffer_size);
     auto output_buffer = std::vector<char>(buffer_size);
