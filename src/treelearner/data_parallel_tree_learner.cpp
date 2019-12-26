@@ -75,6 +75,8 @@ DataParallelTreeLearner<TREELEARNER_T>::~DataParallelTreeLearner()
 template <typename TREELEARNER_T>
 void DataParallelTreeLearner<TREELEARNER_T>::InitializePHub()
 {
+  auto commBackend = std::string(std::getenv("BENCHMARK_PREFERRED_BACKEND") == nullptr ? "" : std::getenv("BENCHMARK_PREFERRED_BACKEND"));
+  if(commBackend != "PHUB") return;
   rank_ = Network::rank();
   num_machines_ = Network::num_machines();
 

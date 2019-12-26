@@ -10,6 +10,14 @@
 
 int main(int argc, char **argv)
 {
+  if (NULL != std::getenv("LIGHTGBM_ENABLE_PROFILER"))
+  {
+    EASY_PROFILER_ENABLE;
+  }
+  else
+  {
+    EASY_PROFILER_DISABLE;
+  }
   try
   {
     auto launchWait = std::getenv("LAUNCH_WAIT");
