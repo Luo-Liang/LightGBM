@@ -8,7 +8,14 @@
 
 int main(int argc, char **argv)
 {
-  EASY_PROFILER_ENABLE;
+  if (NULL != std::getenv("LIGHTGBM_ENABLE_PROFILER"))
+  {
+    EASY_PROFILER_ENABLE;
+  }
+  else
+  {
+    EASY_PROFILER_DISABLE;
+  }
   try
   {
     LightGBM::Application app(argc, argv);
