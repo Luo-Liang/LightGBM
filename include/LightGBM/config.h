@@ -26,10 +26,82 @@ namespace LightGBM {
 enum TaskType {
   kTrain, kPredict, kConvertModel, KRefitTree
 };
+
+
 const int kDefaultNumLeaves = 31;
 
+enum PreferredCollectives
+{
+  AUTO = 0,
+  RING = 1,
+  HALVING_DOUBLING = 2,
+  PLINK = 3
+};
+
+enum CollectiveType
+{
+  ALLGATHER = 0,
+  REDUCESCATTER = 1
+};
+
+
 struct Config {
+ private:
+  static std::vector<PreferredCollectives> CollectivePreference;
+  static PreferredCollectives getPreferredColletiveByType(CollectiveType type)
+  {
+    auto cptr = std::getenv("LIGHTGBM_PREFERRED_COLLECTIVES_REDUCE_SCATTER");
+    if (type == CollectiveType::ALLGATHER)
+    {
+      cptr = std::getenv("LIGHTGBM_PREFERRED_COLLECTIVES_ALLGATHER");
+    }
+    else if (type == CollectiveType::REDUCESCATTER)
+    {
+      cptr = std::getenv("LIGHTGBM_PREFERRED_COLLECTIVES_REDUCE_SCATTER");
+    }
+    else
+    {
+      Log::Fatal("Unknown collectives type %d", type);
+    }
+
+    auto str = std::string(cptr);
+    //Log::Info("Preferred Collectives: %s", cptr);
+    if (str == "AUTO" || str == "")
+    {
+      return PreferredCollectives::AUTO;
+    }
+    else if (str == "RING")
+    {
+      return PreferredCollectives::RING;
+    }
+    else if (str == "HALVING_DOUBLING")
+    {
+      return PreferredCollectives::HALVING_DOUBLING;
+    }
+    else if (str == "PLINK")
+    {
+      return PreferredCollectives::PLINK;
+    }
+    else
+    {
+      Log::Fatal("Unknown collectives %s", cptr);
+      //never hits
+      return PreferredCollectives::AUTO;
+    }
+  }
+
  public:
+  inline static PreferredCollectives GetPreferredCollectives(CollectiveType type)
+  {
+    if (CollectivePreference.size() == 0)
+    {
+      CollectivePreference.resize(2);
+      CollectivePreference[CollectiveType::ALLGATHER] = getPreferredColletiveByType(CollectiveType::ALLGATHER);
+      CollectivePreference[CollectiveType::REDUCESCATTER] = getPreferredColletiveByType(CollectiveType::REDUCESCATTER);
+      //Log::Info("ALLGATHER: %d, REDUCE SCATTER: %d", CollectivePreference[CollectiveType::ALLGATHER], CollectivePreference[CollectiveType::REDUCESCATTER]);
+    }
+    return CollectivePreference[type];
+  }
   std::string ToString() const;
   /*!
   * \brief Get string value by specific name of key

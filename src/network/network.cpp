@@ -176,18 +176,47 @@ void Network::Allgather(char *input, const comm_size_t *block_start, const comm_
   }
   const comm_size_t kRingThreshold = 10 * 1024 * 1024; // 10MB
   const int kRingNodeThreshold = 64;
-  if (all_size > kRingThreshold && num_machines_ < kRingNodeThreshold)
+
+  auto collective = Config::GetPreferredCollectives(CollectiveType::ALLGATHER);
+  if (collective == PreferredCollectives::AUTO)
   {
-    // when num_machines is small and data is large
+    if (all_size > kRingThreshold && num_machines_ < kRingNodeThreshold)
+    {
+      // when num_machines is small and data is large
+      //printf("[%d] allgather with ring. size = %d\n", rank_, (int)all_size);
+      AllgatherRing(input, block_start, block_len, output, all_size);
+    }
+    else if (recursive_halving_map_.is_power_of_2)
+    {
+      //printf("[%d] allgather with HD. size = %d\n", rank_, (int)all_size);
+      AllgatherRecursiveDoubling(input, block_start, block_len, output, all_size);
+    }
+    else
+    {
+      //printf("[%d] allgather with Bruck\n", rank_);
+      AllgatherBruck(input, block_start, block_len, output, all_size);
+    }
+  }
+  else if (collective == PreferredCollectives::RING)
+  {
     AllgatherRing(input, block_start, block_len, output, all_size);
   }
-  else if (recursive_halving_map_.is_power_of_2)
+  else if (collective == PreferredCollectives::HALVING_DOUBLING)
   {
-    AllgatherRecursiveDoubling(input, block_start, block_len, output, all_size);
+    if (recursive_halving_map_.is_power_of_2)
+    {
+      //printf("[%d] allgather with HD. size = %d\n", rank_, (int)all_size);
+      AllgatherRecursiveDoubling(input, block_start, block_len, output, all_size);
+    }
+    else
+    {
+      //printf("[%d] allgather with Bruck\n", rank_);
+      AllgatherBruck(input, block_start, block_len, output, all_size);
+    }
   }
   else
   {
-    AllgatherBruck(input, block_start, block_len, output, all_size);
+    Log::Fatal("Collective is not implemented.");
   }
 }
 
@@ -290,6 +319,7 @@ void Network::ReduceScatter(char *input, comm_size_t input_size, int type_size,
   //Log::Info("[%d] calling ReduceScatter", rank_);
   EASY_FUNCTION(profiler::colors::Magenta); 
   EASY_ARRAY("ReduceScatterblock_len", block_len, num_machines_, profiler::colors::Navy);
+  static bool reduceScatterParadigmSignaled = false;
   if (num_machines_ <= 1)
   {
     Log::Fatal("Please initilize the network interface first");
@@ -298,14 +328,52 @@ void Network::ReduceScatter(char *input, comm_size_t input_size, int type_size,
   {
     return reduce_scatter_ext_fun_(input, input_size, type_size, block_start, block_len, num_machines_, output, output_size, reducer);
   }
-  const comm_size_t kRingThreshold = 10 * 1024 * 1024; // 10MB
-  if (recursive_halving_map_.is_power_of_2 || input_size < kRingThreshold)
+   auto collective = Config::GetPreferredCollectives(CollectiveType::REDUCESCATTER);
+  if (collective == PreferredCollectives::AUTO)
   {
+    const comm_size_t kRingThreshold = 10 * 1024 * 1024; // 10MB
+    if (recursive_halving_map_.is_power_of_2 || input_size < kRingThreshold)
+    {
+      if (rank() == 0 && reduceScatterParadigmSignaled == false)
+      {
+        fprintf(stderr, "information: reduce scatter with HD\n");
+        reduceScatterParadigmSignaled = true;
+      }
+      //printf("[%d]reduce scatter with HD. input_size = %d\n", rank_, (int)input_size);
+      ReduceScatterRecursiveHalving(input, input_size, type_size, block_start, block_len, output, output_size, reducer);
+    }
+    else
+    {
+      if (rank() == 0 && reduceScatterParadigmSignaled == false)
+      {
+        fprintf(stderr, "information: reduce scatter with RING\n");
+        reduceScatterParadigmSignaled = true;
+      }
+      //printf("[%d]reduce scatter with ring size = %d.\n", rank_, (int)input_size);
+      ReduceScatterRing(input, input_size, type_size, block_start, block_len, output, output_size, reducer);
+    }
+  }
+  else if (collective == PreferredCollectives::RING)
+  {
+    if (rank() == 0 && reduceScatterParadigmSignaled == false)
+    {
+      fprintf(stderr, "information: reduce scatter with RING\n");
+      reduceScatterParadigmSignaled = true;
+    }
+    ReduceScatterRing(input, input_size, type_size, block_start, block_len, output, output_size, reducer);
+  }
+  else if (collective == PreferredCollectives::HALVING_DOUBLING)
+  {
+    if (rank() == 0 && reduceScatterParadigmSignaled == false)
+    {
+      fprintf(stderr, "information: reduce scatter with HD\n");
+      reduceScatterParadigmSignaled = true;
+    }
     ReduceScatterRecursiveHalving(input, input_size, type_size, block_start, block_len, output, output_size, reducer);
   }
   else
   {
-    ReduceScatterRing(input, input_size, type_size, block_start, block_len, output, output_size, reducer);
+    Log::Fatal("unimplemented reduce scatter");
   }
 }
 

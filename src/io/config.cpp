@@ -12,6 +12,8 @@
 
 namespace LightGBM {
 
+std::vector<PreferredCollectives> Config::CollectivePreference;
+
 void Config::KV2Map(std::unordered_map<std::string, std::string>* params, const char* kv) {
   std::vector<std::string> tmp_strs = Common::Split(kv, '=');
   if (tmp_strs.size() == 2 || tmp_strs.size() == 1) {
