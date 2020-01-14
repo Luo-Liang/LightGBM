@@ -289,7 +289,7 @@ void GBDT::Train(int snapshot_freq, const std::string& model_output_path) {
     }
     auto end_time = std::chrono::steady_clock::now();
     // output used time per 
-    fprintf(stderr,"%f seconds elapsed, finished iteration %d", std::chrono::duration<double,
+    fprintf(stderr,"%f seconds elapsed, finished iteration %d\n", std::chrono::duration<double,
               std::milli>(end_time - start_time) * 1e-3, iter + 1);
     //Log::Info(
     if (snapshot_freq > 0
